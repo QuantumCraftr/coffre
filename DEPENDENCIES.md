@@ -7,21 +7,23 @@ pinée dans `Cargo.lock` (committé), et validée par revue humaine.
 
 | Crate | Version | Rôle | Justification |
 | --- | --- | --- | --- |
-| `argon2` | 0.6 | Dérivation de clé (Argon2id) | Standard OWASP pour les mots de passe. On ne réinvente pas la crypto. Features minimales (`alloc`), `getrandom`/`password-hash` désactivés. |
-| `chacha20poly1305` | 0.11 | AEAD XChaCha20-Poly1305 | Constant-time en pur logiciel, nonce 192 bits. Features minimales (`alloc`), `getrandom` désactivé. |
+| `argon2` | 0.6 | Dérivation de clé (Argon2id) | Standard OWASP. Features `alloc` + `zeroize` (matériel de clé effacé à la destruction), `getrandom`/`password-hash` désactivés. |
+| `chacha20poly1305` | 0.11 | AEAD XChaCha20-Poly1305 | Constant-time en pur logiciel, nonce 192 bits. Features `alloc` + `zeroize`, `getrandom` désactivé. |
+| `getrandom` | 0.4 | CSPRNG de l'OS | Sel unique par coffre, nonce neuf à chaque écriture, suffixe des fichiers temporaires. Features `std` + `sys_rng`. |
+| `zeroize` | 1.9 | Effacement mémoire | Zeroization de la clé dérivée, du payload déchiffré et des noms/valeurs de secrets à la destruction. |
 
-Les deux sont des primitives **RustCrypto**, pur Rust, sans `unsafe` dans notre code.
-Leur correction est vérifiée par **validation croisée** contre des implémentations
-indépendantes (voir `coffre-core/tests/crypto_vectors.rs`) :
+Les primitives `argon2` et `chacha20poly1305` sont **RustCrypto**, pur Rust, sans `unsafe`
+dans notre code. Leur correction est vérifiée par **validation croisée** contre des
+implémentations indépendantes (voir `coffre-core/tests/crypto_vectors.rs`) :
 
 - Argon2id : sortie identique à l'implémentation C de référence (via `argon2-cffi`).
 - XChaCha20-Poly1305 : sortie identique à libsodium (via PyNaCl).
 
 ## Dépendances transitives
 
-Listées et pinées dans `Cargo.lock`. Ce sont les sous-composants des primitives
-RustCrypto (blake2, chacha20, poly1305, aead, etc.). Vérifiées par `cargo audit`
-(RustSec) et `cargo deny` (bans, licences, sources) à chaque build.
+Listées et pinées dans `Cargo.lock`. Sous-composants des primitives RustCrypto, plus les
+dépendances de `getrandom` (`r-efi`, `rand_core` pour les backends plateforme). Vérifiées
+par `cargo audit` (RustSec) et `cargo deny` (bans, licences, sources) à chaque build.
 
 ## Outils de développement (non liés au binaire)
 

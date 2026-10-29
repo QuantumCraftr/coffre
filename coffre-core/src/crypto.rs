@@ -14,6 +14,7 @@ pub enum CryptoError {
     Decryption,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct KdfParams {
     pub m_cost: u32,
     pub t_cost: u32,
@@ -46,12 +47,12 @@ pub fn derive_key(
 }
 
 pub fn seal(
-    key: [u8; KEY_LEN],
+    key: &[u8; KEY_LEN],
     nonce: [u8; NONCE_LEN],
     plaintext: &[u8],
     aad: &[u8],
 ) -> Result<Vec<u8>, CryptoError> {
-    let cipher = XChaCha20Poly1305::new(&Key::from(key));
+    let cipher = XChaCha20Poly1305::new(&Key::from(*key));
     cipher
         .encrypt(
             &XNonce::from(nonce),
@@ -64,12 +65,12 @@ pub fn seal(
 }
 
 pub fn open(
-    key: [u8; KEY_LEN],
+    key: &[u8; KEY_LEN],
     nonce: [u8; NONCE_LEN],
     ciphertext: &[u8],
     aad: &[u8],
 ) -> Result<Vec<u8>, CryptoError> {
-    let cipher = XChaCha20Poly1305::new(&Key::from(key));
+    let cipher = XChaCha20Poly1305::new(&Key::from(*key));
     cipher
         .decrypt(
             &XNonce::from(nonce),

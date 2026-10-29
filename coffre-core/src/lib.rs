@@ -2,5 +2,6 @@
 
 pub mod crypto;
 pub mod format;
+pub mod vault;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

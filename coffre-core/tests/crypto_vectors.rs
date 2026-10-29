@@ -29,7 +29,7 @@ fn xchacha20poly1305_matches_libsodium() {
     let nonce: [u8; 24] = hex("000102030405060708090a0b0c0d0e0f1011121314151617")
         .try_into()
         .unwrap();
-    let ct = seal(key, nonce, b"coffre test vector", b"header").unwrap();
+    let ct = seal(&key, nonce, b"coffre test vector", b"header").unwrap();
     let expected = hex("fdad6919e2b7adda563752eebd37cb9c24352fc7003b83c3cd8b73435c9f2c17741a");
     assert_eq!(ct, expected);
 }
@@ -40,9 +40,9 @@ fn round_trip() {
     let nonce = [9u8; 24];
     let plaintext = b"secret";
     let aad = b"hdr";
-    let ct = seal(key, nonce, plaintext, aad).unwrap();
+    let ct = seal(&key, nonce, plaintext, aad).unwrap();
     assert_eq!(ct.len(), plaintext.len() + TAG_LEN);
-    let opened = open(key, nonce, &ct, aad).unwrap();
+    let opened = open(&key, nonce, &ct, aad).unwrap();
     assert_eq!(opened, plaintext);
 }
 
@@ -51,27 +51,27 @@ fn detects_single_bit_corruption() {
     let key = [7u8; 32];
     let nonce = [9u8; 24];
     let aad = b"hdr";
-    let mut ct = seal(key, nonce, b"secret", aad).unwrap();
+    let mut ct = seal(&key, nonce, b"secret", aad).unwrap();
     ct[0] ^= 1;
-    assert!(open(key, nonce, &ct, aad).is_err());
+    assert!(open(&key, nonce, &ct, aad).is_err());
 }
 
 #[test]
 fn rejects_wrong_aad() {
     let key = [7u8; 32];
     let nonce = [9u8; 24];
-    let ct = seal(key, nonce, b"secret", b"hdr").unwrap();
-    assert!(open(key, nonce, &ct, b"other").is_err());
+    let ct = seal(&key, nonce, b"secret", b"hdr").unwrap();
+    assert!(open(&key, nonce, &ct, b"other").is_err());
 }
 
 #[test]
 fn rejects_wrong_nonce() {
     let key = [7u8; 32];
     let nonce = [9u8; 24];
-    let ct = seal(key, nonce, b"secret", b"hdr").unwrap();
+    let ct = seal(&key, nonce, b"secret", b"hdr").unwrap();
     let mut bad_nonce = nonce;
     bad_nonce[0] ^= 1;
-    assert!(open(key, bad_nonce, &ct, b"hdr").is_err());
+    assert!(open(&key, bad_nonce, &ct, b"hdr").is_err());
 }
 
 #[test]
@@ -85,16 +85,16 @@ fn wrong_password_fails_to_decrypt() {
     let key = derive_key(b"correct", &salt, &params).unwrap();
     let wrong = derive_key(b"wrong", &salt, &params).unwrap();
     let nonce = [0u8; 24];
-    let ct = seal(key, nonce, b"secret", b"").unwrap();
-    assert!(open(wrong, nonce, &ct, b"").is_err());
+    let ct = seal(&key, nonce, b"secret", b"").unwrap();
+    assert!(open(&wrong, nonce, &ct, b"").is_err());
 }
 
 #[test]
 fn empty_plaintext_round_trip() {
     let key = [0u8; 32];
     let nonce = [0u8; 24];
-    let ct = seal(key, nonce, b"", b"").unwrap();
+    let ct = seal(&key, nonce, b"", b"").unwrap();
     assert_eq!(ct.len(), TAG_LEN);
-    let opened = open(key, nonce, &ct, b"").unwrap();
+    let opened = open(&key, nonce, &ct, b"").unwrap();
     assert!(opened.is_empty());
 }
