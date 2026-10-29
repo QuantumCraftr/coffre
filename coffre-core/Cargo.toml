@@ -6,3 +6,8 @@ description = "Coeur du coffre : format, chiffrement, zeroization"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
+# Primitives cryptographiques eprouvees (RustCrypto), features minimales.
+# argon2 : derivation de cle (Argon2id). Pas de getrandom/password-hash : on fournit le sel.
+# chacha20poly1305 : AEAD XChaCha20-Poly1305. Pas de getrandom : on fournit le nonce.
+argon2 = { version = "0.6", default-features = false, features = ["alloc"] }
+chacha20poly1305 = { version = "0.11", default-features = false, features = ["alloc"] }

@@ -20,15 +20,15 @@ Mise en place de l'infrastructure de vérification avant toute ligne de crypto.
 
 **DoD** : CI verte sur un commit vide, zéro warning clippy, zéro dépendance ajoutée.
 
-## Phase 1 — Spike cryptographique
+## Phase 1 — Spike cryptographique (terminée)
 
 Valider les primitives choisies avant d'écrire la moindre fonctionnalité.
 
-- Argon2id et XChaCha20-Poly1305 (RustCrypto) vérifiés contre les **test vectors officiels** (RFC 9106, RFC 8439).
-- Preuves : round-trip correct, échec propre sur mauvais mot de passe, détection d'un bit modifié.
-- Mesures : `miri` propre, zéro `unsafe`.
+- Argon2id et XChaCha20-Poly1305 (RustCrypto) vérifiés par **validation croisée** contre des implémentations indépendantes (référence C pour Argon2id, libsodium pour XChaCha20).
+- Preuves : round-trip correct, échec propre sur mauvais mot de passe, détection d'un bit modifié, rejet d'un mauvais AAD/nonce.
+- Mesures : `miri` propre (8/8 tests), zéro `unsafe` dans notre code.
 
-**DoD** : les vecteurs de test passent, la corruption est détectée, pas d'undefined behavior.
+**DoD** : les vecteurs de test passent, la corruption est détectée, pas d'undefined behavior. **Remplie.**
 
 ## Phase 2 — Format et cœur
 

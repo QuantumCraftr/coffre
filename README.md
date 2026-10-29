@@ -11,7 +11,7 @@ Un coffre de secrets local, open-source, construit sur le contre-choix : pas de 
 
 ## Statut
 
-**Pré-alpha.** Phase 0 (socle) terminée : workspace Rust, CI, zéro dépendance, zéro `unsafe`, builds reproductibles. **Aucune fonctionnalité n'est encore utilisable : ne stockez rien de sensible avec.** Suivi du développement : [PLAN.md](PLAN.md).
+**Pré-alpha.** Phases 0 (socle) et 1 (spike crypto) terminées : primitives Argon2id et XChaCha20-Poly1305 validées par test vectors croisés, `miri` propre, zéro `unsafe`. **Aucune fonctionnalité n'est encore utilisable : ne stockez rien de sensible avec.** Suivi : [PLAN.md](PLAN.md).
 
 ## Pourquoi ce n'est pas un « Bitwarden killer »
 
@@ -46,6 +46,7 @@ Bitwarden et KeePass sont éprouvés et très bons. `coffre` n'essaie pas de fai
 | Vérification | Test vectors officiels (RFC 9106, RFC 8439) |
 
 Le modèle de menace complet est documenté et versionné : [THREAT_MODEL.md](THREAT_MODEL.md).
+Chaque dépendance est justifiée : [DEPENDENCIES.md](DEPENDENCIES.md).
 
 ## Mise en route
 
@@ -64,6 +65,8 @@ cargo clippy --workspace --all-targets -- -D warnings    # lint strict
 cargo test --workspace                                   # tests
 cargo audit                                              # vulnérabilités (RustSec)
 cargo deny check                                         # supply chain (bans, licences, sources)
+cargo +nightly miri test -p coffre-core                  # undefined behavior (Miri)
+.venv/bin/python scripts/gen_vectors.py                  # régénérer les vecteurs de référence
 ```
 
 La CI exécute ces commandes à chaque push.
