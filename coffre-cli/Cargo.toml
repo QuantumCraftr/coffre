@@ -1,0 +1,13 @@
+[package]
+name = "coffre-cli"
+version = "0.1.0"
+edition = "2024"
+description = "Interface en ligne de commande du coffre"
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "coffre"
+path = "src/main.rs"
+
+[dependencies]
+coffre-core = { path = "../coffre-core", version = "0.1.0" }

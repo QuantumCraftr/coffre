@@ -1,0 +1,18 @@
+[advisories]
+unmaintained = "all"
+unsound = "all"
+yanked = "deny"
+
+[bans]
+multiple-versions = "deny"
+wildcards = "deny"
+
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

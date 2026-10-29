@@ -1,0 +1,8 @@
+[package]
+name = "coffre-core"
+version = "0.1.0"
+edition = "2024"
+description = "Coeur du coffre : format, chiffrement, zeroization"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
