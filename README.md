@@ -7,6 +7,8 @@ Un coffre de secrets local, open-source, construit sur le contre-choix : pas de 
 [![Status](https://img.shields.io/badge/status-pre--alpha-red.svg)](#statut)
 [![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org)
 
+![coffre : coffre-fort numérique, secrets injectés en variables d'environnement, format ouvert, chiffrement moderne](assets/coffre-hero.png)
+
 > À l'heure où l'essentiel du code est généré par IA, `coffre` fait le pari inverse : un outil du quotidien dont on peut réellement lire et auditer chaque ligne, plutôt qu'un gros binaire auquel on fait confiance sur réputation.
 
 ## Statut
