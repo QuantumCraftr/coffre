@@ -67,11 +67,16 @@ coffre add  ~/.coffre/vault github_token     # valeur lue sur stdin ou demandée
 coffre get  ~/.coffre/vault github_token     # affiche la valeur
 coffre list ~/.coffre/vault                  # liste les noms
 coffre rm   ~/.coffre/vault github_token     # supprime
+coffre run  ~/.coffre/vault GITHUB_TOKEN -- ./deploy.sh   # injecte GITHUB_TOKEN en env var
 ```
 
 La phrase secrète est demandée sur le terminal (sans écho). Pour l'automatisation,
 `COFFRE_PASSPHRASE` permet de la fournir, avec la même prudence qu'un mot de passe
 passé par variable d'environnement (visible pour le même utilisateur et root).
+
+`run` injecte les secrets demandés dans l'environnement du process enfant, sans jamais les
+afficher côté `coffre`. Limite assumée : l'environnement d'un process est lisible par le même
+utilisateur et root (`/proc/<pid>/environ`). À réserver aux agents et scripts.
 
 ## Commandes utiles
 

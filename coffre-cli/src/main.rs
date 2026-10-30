@@ -1,6 +1,7 @@
+use std::ffi::OsString;
 use std::io::{self, IsTerminal, Read, Write};
 use std::path::Path;
-use std::process::ExitCode;
+use std::process::{Command, ExitCode};
 
 use coffre_core::crypto::KdfParams;
 use coffre_core::vault::{Vault, VaultError};
@@ -43,7 +44,7 @@ impl From<io::Error> for CliError {
 
 fn main() -> ExitCode {
     match run() {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(code) => code,
         Err(e) => {
             eprintln!("coffre: {e}");
             ExitCode::FAILURE
@@ -51,26 +52,29 @@ fn main() -> ExitCode {
     }
 }
 
-fn run() -> Result<(), CliError> {
+fn run() -> Result<ExitCode, CliError> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let Some((command, rest)) = args.split_first() else {
         return Err(CliError::Usage(usage().to_string()));
     };
     match command.as_str() {
-        "init" => cmd_init(rest),
-        "add" => cmd_add(rest),
-        "get" => cmd_get(rest),
-        "list" => cmd_list(rest),
-        "rm" => cmd_rm(rest),
+        "init" => cmd_init(rest)?,
+        "add" => cmd_add(rest)?,
+        "get" => cmd_get(rest)?,
+        "list" => cmd_list(rest)?,
+        "rm" => cmd_rm(rest)?,
+        "run" => return cmd_run(rest),
         "help" | "-h" | "--help" => {
             println!("{}", usage());
-            Ok(())
         }
-        other => Err(CliError::Usage(format!(
-            "unknown command: {other}\n\n{}",
-            usage()
-        ))),
+        other => {
+            return Err(CliError::Usage(format!(
+                "unknown command: {other}\n\n{}",
+                usage()
+            )));
+        }
     }
+    Ok(ExitCode::SUCCESS)
 }
 
 fn cmd_init(rest: &[String]) -> Result<(), CliError> {
@@ -125,6 +129,74 @@ fn cmd_rm(rest: &[String]) -> Result<(), CliError> {
     Ok(())
 }
 
+fn cmd_run(rest: &[String]) -> Result<ExitCode, CliError> {
+    let separator = rest
+        .iter()
+        .position(|arg| arg.as_str() == "--")
+        .ok_or_else(|| CliError::Usage(run_usage()))?;
+    if separator == 0 {
+        return Err(CliError::Usage(run_usage()));
+    }
+    let path = &rest[0];
+    let names = &rest[1..separator];
+    let command = &rest[separator + 1..];
+    if command.is_empty() {
+        return Err(CliError::Usage(run_usage()));
+    }
+
+    let passphrase = read_passphrase(false)?;
+    let vault = Vault::open(Path::new(path), passphrase.as_bytes())?;
+
+    let mut values = Vec::new();
+    for name in names {
+        if !is_env_name(name) {
+            return Err(CliError::Usage(format!(
+                "not a valid environment variable name: {name}"
+            )));
+        }
+        let Some(value) = vault.get(name) else {
+            return Err(CliError::NotFound(name.clone()));
+        };
+        values.push((name.clone(), Zeroizing::new(value.to_vec())));
+    }
+
+    let mut child = Command::new(command[0].as_str());
+    child.args(&command[1..]);
+    for (name, value) in &values {
+        child.env(name.as_str(), env_value(value.as_slice()));
+    }
+
+    let status = child.status()?;
+    Ok(exit_code_from(status))
+}
+
+fn is_env_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+#[cfg(unix)]
+fn env_value(bytes: &[u8]) -> OsString {
+    use std::os::unix::ffi::OsStrExt;
+    std::ffi::OsStr::from_bytes(bytes).to_os_string()
+}
+
+#[cfg(not(unix))]
+fn env_value(bytes: &[u8]) -> OsString {
+    OsString::from(String::from_utf8_lossy(bytes).into_owned())
+}
+
+fn exit_code_from(status: std::process::ExitStatus) -> ExitCode {
+    match status.code() {
+        Some(code) if (0..=255).contains(&code) => ExitCode::from(code as u8),
+        _ => ExitCode::FAILURE,
+    }
+}
+
 fn read_passphrase(confirm: bool) -> Result<Zeroizing<String>, CliError> {
     if let Ok(from_env) = std::env::var("COFFRE_PASSPHRASE") {
         return Ok(Zeroizing::new(from_env));
@@ -170,6 +242,10 @@ fn two_args<'a>(rest: &'a [String], usage: &str) -> Result<(&'a str, &'a str), C
     }
 }
 
+fn run_usage() -> String {
+    "usage: coffre run <path> [name...] -- <command> [args...]".to_string()
+}
+
 fn usage() -> &'static str {
     "usage: coffre <command> [args]
 
@@ -179,6 +255,8 @@ commands:
   get  <path> <name>     print a secret value
   list <path>            list secret names
   rm   <path> <name>     remove a secret
+  run  <path> [name...] -- <command> [args...]
+                         run a command with secrets injected as env vars
 
 passphrase: prompted on the terminal, or read from COFFRE_PASSPHRASE for automation"
 }

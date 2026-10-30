@@ -110,3 +110,67 @@ fn unknown_command_fails() {
     let out = coffre().arg("nope").output().unwrap();
     assert!(!out.status.success());
 }
+
+#[test]
+fn run_injects_requested_secrets_only() {
+    let tmp = TempDir::new();
+    let path = tmp.0.join("vault.coffre");
+    let path = path.to_str().unwrap();
+
+    assert!(run(coffre().args(["init", path]), "").status.success());
+    assert!(
+        run(coffre().args(["add", path, "API_KEY"]), "s3cret\n")
+            .status
+            .success()
+    );
+    assert!(
+        run(coffre().args(["add", path, "OTHER"]), "nope\n")
+            .status
+            .success()
+    );
+
+    let out = run(
+        coffre().args([
+            "run",
+            path,
+            "API_KEY",
+            "--",
+            "sh",
+            "-c",
+            "printf %s \"$API_KEY\"",
+        ]),
+        "",
+    );
+    assert!(
+        out.status.success(),
+        "run: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(stdout(&out), "s3cret");
+
+    let out = run(
+        coffre().args([
+            "run",
+            path,
+            "API_KEY",
+            "--",
+            "sh",
+            "-c",
+            "printf %s \"${OTHER:-unset}\"",
+        ]),
+        "",
+    );
+    assert!(out.status.success());
+    assert_eq!(stdout(&out), "unset");
+}
+
+#[test]
+fn run_propagates_exit_code() {
+    let tmp = TempDir::new();
+    let path = tmp.0.join("vault.coffre");
+    let path = path.to_str().unwrap();
+    assert!(run(coffre().args(["init", path]), "").status.success());
+
+    let out = run(coffre().args(["run", path, "--", "sh", "-c", "exit 7"]), "");
+    assert_eq!(out.status.code(), Some(7));
+}
