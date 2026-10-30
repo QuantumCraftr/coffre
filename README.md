@@ -1,13 +1,20 @@
-# coffre
+<h1 align="center">coffre</h1>
 
-Un coffre de secrets local, open-source, construit sur le contre-choix : pas de course à la vitesse, mais une exigence de **vérifiabilité totale**.
+<p align="center">
+  <strong>Un coffre de secrets local, open-source, construit sur le contre-choix :<br>
+  pas de course à la vitesse, mais une exigence de <em>vérifiabilité totale</em>.</strong>
+</p>
 
-[![CI](https://github.com/QuantumCraftr/coffre/actions/workflows/ci.yml/badge.svg)](https://github.com/QuantumCraftr/coffre/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#licence)
-[![Status](https://img.shields.io/badge/status-pre--alpha-red.svg)](#statut)
-[![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org)
+<p align="center">
+  <a href="https://github.com/QuantumCraftr/coffre/actions/workflows/ci.yml"><img src="https://github.com/QuantumCraftr/coffre/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="#licence"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg" alt="License"></a>
+  <a href="#statut"><img src="https://img.shields.io/badge/status-pre--alpha-red.svg" alt="Status"></a>
+  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-stable-orange.svg" alt="Rust"></a>
+</p>
 
-![coffre : coffre-fort numérique, secrets injectés en variables d'environnement, format ouvert, chiffrement moderne](assets/coffre-hero.png)
+<p align="center">
+  <img width="820" alt="coffre : coffre-fort numérique, secrets injectés en variables d'environnement, format ouvert, chiffrement moderne" src="assets/coffre-hero.png">
+</p>
 
 > À l'heure où l'essentiel du code est généré par IA, `coffre` fait le pari inverse : un outil du quotidien dont on peut réellement lire et auditer chaque ligne, plutôt qu'un gros binaire auquel on fait confiance sur réputation.
 
