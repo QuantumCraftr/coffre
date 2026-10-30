@@ -13,7 +13,7 @@ Un coffre de secrets local, open-source, construit sur le contre-choix : pas de 
 
 ## Statut
 
-**Pré-alpha.** Phases 0 (socle) et 1 (spike crypto) terminées : primitives Argon2id et XChaCha20-Poly1305 validées par test vectors croisés, `miri` propre, zéro `unsafe`. **Aucune fonctionnalité n'est encore utilisable : ne stockez rien de sensible avec.** Suivi : [PLAN.md](PLAN.md).
+**Pré-alpha.** Phases 0 et 1 terminées, Phase 2 en cours : primitives validées (Argon2id, XChaCha20-Poly1305), format v1, couche `Vault` (écriture atomique, zeroization) et CLI de base (`init`, `add`, `get`, `list`, `rm`). **Ne stockez pas encore de secrets critiques :** pas d'audit externe, property tests et fuzzing à venir. Suivi : [PLAN.md](PLAN.md).
 
 ## Pourquoi ce n'est pas un « Bitwarden killer »
 
@@ -58,6 +58,20 @@ rustup component add rustfmt clippy                               # composants
 cargo install cargo-audit cargo-deny                             # outils de contrôle
 cargo build
 ```
+
+## Utilisation
+
+```bash
+coffre init ~/.coffre/vault                 # crée le coffre (phrase secrète demandée)
+coffre add  ~/.coffre/vault github_token     # valeur lue sur stdin ou demandée
+coffre get  ~/.coffre/vault github_token     # affiche la valeur
+coffre list ~/.coffre/vault                  # liste les noms
+coffre rm   ~/.coffre/vault github_token     # supprime
+```
+
+La phrase secrète est demandée sur le terminal (sans écho). Pour l'automatisation,
+`COFFRE_PASSPHRASE` permet de la fournir, avec la même prudence qu'un mot de passe
+passé par variable d'environnement (visible pour le même utilisateur et root).
 
 ## Commandes utiles
 
