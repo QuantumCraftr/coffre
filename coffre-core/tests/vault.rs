@@ -118,6 +118,7 @@ fn tampered_salt_fails() {
     let path = tmp.vault_path();
     Vault::create(&path, b"pass", test_params()).unwrap();
     let mut bytes = fs::read(&path).unwrap();
+    // Modifier le sel change la clé dérivée et l'AAD : le tag doit échouer.
     bytes[23] ^= 1;
     fs::write(&path, &bytes).unwrap();
     let err = expect_err(Vault::open(&path, b"pass"));
@@ -135,6 +136,7 @@ fn create_twice_fails() {
 
 #[test]
 fn no_temp_file_left_after_save() {
+    // L'écriture atomique ne doit laisser aucun fichier temporaire derrière elle.
     let tmp = TempDir::new();
     let path = tmp.vault_path();
     Vault::create(&path, b"pass", test_params()).unwrap();
@@ -152,6 +154,7 @@ fn no_temp_file_left_after_save() {
 
 #[test]
 fn salt_and_nonce_are_fresh() {
+    // Invariant : sel unique par coffre, nonce neuf à chaque écriture.
     let tmp = TempDir::new();
     let p1 = tmp.0.join("v1.coffre");
     let p2 = tmp.0.join("v2.coffre");
@@ -172,6 +175,8 @@ fn salt_and_nonce_are_fresh() {
 
 #[test]
 fn unsupported_params_rejected_before_kdf() {
+    // m_cost énorme : sans borne, Argon2 allouerait des Go de RAM avant toute
+    // authentification (l'en-tête est lu avant la vérification du tag).
     let tmp = TempDir::new();
     let path = tmp.vault_path();
     let header = Header {

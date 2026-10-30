@@ -1,3 +1,5 @@
+//! Cycle de vie du coffre : création, ouverture, sauvegarde atomique et zeroization.
+
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -11,12 +13,18 @@ const MAX_M_COST: u32 = 1_048_576;
 const MAX_T_COST: u32 = 16;
 const MAX_P_COST: u32 = 16;
 
+/// Erreur de la couche coffre.
 #[derive(Debug)]
 pub enum VaultError {
+    /// Erreur d'entrée/sortie.
     Io(std::io::Error),
+    /// Erreur de format de fichier.
     Format(FormatError),
+    /// Erreur cryptographique.
     Crypto(CryptoError),
+    /// Le fichier existe déjà (création refusée pour ne pas écraser).
     AlreadyExists,
+    /// Paramètres Argon2 hors bornes (protection anti-DoS).
     UnsupportedParams,
 }
 
@@ -56,6 +64,13 @@ fn rng_fill(buf: &mut [u8]) -> Result<(), VaultError> {
     getrandom::fill(buf).map_err(|e| VaultError::Io(std::io::Error::other(e.to_string())))
 }
 
+/// Un coffre ouvert en mémoire.
+///
+/// Les secrets sont déchiffrés en mémoire pendant la session. Les mutations
+/// (`add`, `remove`) ne sont persistées qu'au prochain appel à [`Vault::save`].
+///
+/// Le type n'implémente volontairement pas `Debug`, pour ne pas risquer d'exposer
+/// la clé ou les secrets dans un log.
 pub struct Vault {
     path: PathBuf,
     header: Header,
@@ -64,6 +79,10 @@ pub struct Vault {
 }
 
 impl Vault {
+    /// Crée un nouveau coffre à `path`.
+    ///
+    /// Échoue si le fichier existe déjà. Un sel aléatoire est généré, la clé est
+    /// dérivée, puis un coffre vide est écrit de façon atomique.
     pub fn create(path: &Path, passphrase: &[u8], params: KdfParams) -> Result<Self, VaultError> {
         if path.exists() {
             return Err(VaultError::AlreadyExists);
@@ -90,6 +109,11 @@ impl Vault {
         Ok(vault)
     }
 
+    /// Ouvre et déchiffre un coffre existant.
+    ///
+    /// Les paramètres Argon2 lus dans l'en-tête sont bornés avant dérivation
+    /// (protection contre un fichier piégé). Un mauvais mot de passe et un fichier
+    /// corrompu produisent la même erreur.
     pub fn open(path: &Path, passphrase: &[u8]) -> Result<Self, VaultError> {
         let bytes = fs::read(path)?;
         if bytes.len() < HEADER_LEN {
@@ -114,6 +138,10 @@ impl Vault {
         })
     }
 
+    /// Réécrit le coffre sur disque de façon atomique.
+    ///
+    /// Un nouveau nonce est généré à chaque appel. L'écriture passe par un fichier
+    /// temporaire (`fsync`) puis un `rename`, suivi d'un `fsync` du dossier.
     pub fn save(&mut self) -> Result<(), VaultError> {
         let mut nonce = [0u8; NONCE_LEN];
         rng_fill(&mut nonce)?;
@@ -128,22 +156,27 @@ impl Vault {
         write_atomic(&self.path, &out)
     }
 
+    /// Ajoute ou remplace un secret en mémoire. Non persisté avant `save`.
     pub fn add(&mut self, name: &str, value: &[u8]) {
         self.entries.insert(name.to_owned(), value.to_vec());
     }
 
+    /// Lit un secret en mémoire.
     pub fn get(&self, name: &str) -> Option<&[u8]> {
         self.entries.get(name).map(Vec::as_slice)
     }
 
+    /// Liste les noms de secrets, triés.
     pub fn list(&self) -> impl Iterator<Item = &str> + '_ {
         self.entries.keys().map(String::as_str)
     }
 
+    /// Supprime un secret en mémoire. Renvoie `true` s'il existait.
     pub fn remove(&mut self, name: &str) -> bool {
         self.entries.remove(name).is_some()
     }
 
+    /// Chemin du fichier de coffre.
     pub fn path(&self) -> &Path {
         &self.path
     }

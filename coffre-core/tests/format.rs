@@ -90,6 +90,7 @@ fn payload_rejects_truncated_len() {
 
 #[test]
 fn payload_rejects_truncated_body() {
+    // Annonce 5 octets de nom mais n'en fournit aucun.
     let mut bytes = Vec::new();
     bytes.extend_from_slice(&1u32.to_be_bytes());
     bytes.extend_from_slice(&5u32.to_be_bytes());
@@ -105,6 +106,7 @@ fn payload_rejects_trailing_data() {
 
 #[test]
 fn payload_rejects_invalid_utf8() {
+    // Nom fabriqué à la main : 0xff n'est pas de l'UTF-8 valide.
     let mut bytes = Vec::new();
     bytes.extend_from_slice(&1u32.to_be_bytes());
     bytes.extend_from_slice(&1u32.to_be_bytes());
@@ -115,6 +117,7 @@ fn payload_rejects_invalid_utf8() {
 
 #[test]
 fn payload_rejects_duplicate_name() {
+    // Deux entrées "k" : ambiguïté refusée plutôt qu'écrasement silencieux.
     let mut bytes = Vec::new();
     bytes.extend_from_slice(&2u32.to_be_bytes());
     for _ in 0..2 {
