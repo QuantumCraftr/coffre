@@ -79,8 +79,19 @@ fn run() -> Result<ExitCode, CliError> {
 
 fn cmd_init(rest: &[String]) -> Result<(), CliError> {
     let path = one_arg(rest, "init <path>")?;
+    let target = Path::new(path);
+    if let Some(parent) = target.parent()
+        && !parent.as_os_str().is_empty()
+        && !parent.exists()
+    {
+        return Err(CliError::Usage(format!(
+            "parent directory does not exist: {}",
+            parent.display()
+        )));
+    }
     let passphrase = read_passphrase(true)?;
-    Vault::create(Path::new(path), passphrase.as_bytes(), KdfParams::default())?;
+    Vault::create(target, passphrase.as_bytes(), KdfParams::default())?;
+    eprintln!("coffre: vault created: {}", target.display());
     Ok(())
 }
 
@@ -91,6 +102,7 @@ fn cmd_add(rest: &[String]) -> Result<(), CliError> {
     let mut vault = Vault::open(Path::new(path), passphrase.as_bytes())?;
     vault.add(name, value.as_slice());
     vault.save()?;
+    eprintln!("coffre: added '{name}'");
     Ok(())
 }
 
@@ -112,8 +124,13 @@ fn cmd_list(rest: &[String]) -> Result<(), CliError> {
     let path = one_arg(rest, "list <path>")?;
     let passphrase = read_passphrase(false)?;
     let vault = Vault::open(Path::new(path), passphrase.as_bytes())?;
+    let mut any = false;
     for name in vault.list() {
         println!("{name}");
+        any = true;
+    }
+    if !any {
+        eprintln!("coffre: vault is empty");
     }
     Ok(())
 }
@@ -126,6 +143,7 @@ fn cmd_rm(rest: &[String]) -> Result<(), CliError> {
         return Err(CliError::NotFound(name.to_string()));
     }
     vault.save()?;
+    eprintln!("coffre: removed '{name}'");
     Ok(())
 }
 
@@ -201,7 +219,12 @@ fn read_passphrase(confirm: bool) -> Result<Zeroizing<String>, CliError> {
     if let Ok(from_env) = std::env::var("COFFRE_PASSPHRASE") {
         return Ok(Zeroizing::new(from_env));
     }
-    let passphrase = Zeroizing::new(rpassword::prompt_password("Passphrase: ")?);
+    let label = if confirm {
+        "New passphrase: "
+    } else {
+        "Passphrase: "
+    };
+    let passphrase = Zeroizing::new(rpassword::prompt_password(label)?);
     if confirm {
         let again = rpassword::prompt_password("Confirm passphrase: ")?;
         if passphrase.as_str() != again.as_str() {
