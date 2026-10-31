@@ -106,6 +106,19 @@ cargo +nightly fuzz run payload_decode -- -runs=100000    # fuzzing (libFuzzer)
 
 CI runs these commands on every push.
 
+## Independent verification
+
+The vault format is documented in [FORMAT.md](FORMAT.md). A separate Python reader, written
+from that spec and using argon2-cffi and PyNaCl (libsodium), can decrypt a vault produced by
+`coffre`:
+
+```bash
+COFFRE_PASSPHRASE=... .venv/bin/python scripts/verify_vault.py ~/.coffre/vault
+```
+
+This checks that the Rust implementation matches the documented format and crypto, without
+reading Rust.
+
 ## Layout
 
 ```

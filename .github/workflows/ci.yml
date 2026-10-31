@@ -73,3 +73,26 @@ jobs:
         run: cargo +nightly fuzz run header_decode -- -runs=50000 -max_len=256
       - name: Fuzz payload_decode
         run: cargo +nightly fuzz run payload_decode -- -runs=50000 -max_len=1024
+
+  independent-verifier:
+    name: independent python verifier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Python deps
+        run: pip install argon2-cffi pynacl
+      - name: Build CLI
+        run: cargo build --locked -p coffre-cli
+      - name: Cross-implementation check
+        run: |
+          set -eu
+          export COFFRE_PASSPHRASE=test-pass
+          V=/tmp/verify.coffre
+          ./target/debug/coffre init "$V"
+          printf '%s' 's3cret' | ./target/debug/coffre add "$V" API_KEY
+          python scripts/verify_vault.py "$V"

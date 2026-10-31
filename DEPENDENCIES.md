@@ -42,3 +42,5 @@ Listed and pinned in `Cargo.lock`. Sub-components of the RustCrypto primitives, 
 
 - `scripts/gen_vectors.py`: generates the reference vectors. Uses an isolated Python venv
   (`argon2-cffi`, `pynacl`). No impact on the Rust binary.
+- `scripts/verify_vault.py`: independent reader (`argon2-cffi` + PyNaCl) that opens a vault
+  according to `FORMAT.md`, to verify the Rust implementation without reading Rust.
