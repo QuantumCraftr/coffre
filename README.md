@@ -20,7 +20,7 @@
 
 ## Statut
 
-**Pré-alpha.** Phases 0 et 1 terminées, Phase 2 en cours : primitives validées (Argon2id, XChaCha20-Poly1305), format v1, couche `Vault` (écriture atomique, zeroization) et CLI de base (`init`, `add`, `get`, `list`, `rm`). **Ne stockez pas encore de secrets critiques :** pas d'audit externe, property tests et fuzzing à venir. Suivi : [PLAN.md](PLAN.md).
+**Pré-alpha.** Phases 0, 1 et 2 terminées : primitives validées (Argon2id, XChaCha20-Poly1305), format v1, couche `Vault` (écriture atomique, zeroization), CLI (`init`, `add`, `get`, `list`, `rm`, `run`), tests à propriétés, fuzzing libFuzzer, ASan et Miri. Pas encore d'audit externe : **ne stockez pas encore de secrets critiques.** Voir [SECURITY.md](SECURITY.md) et [PLAN.md](PLAN.md).
 
 ## Pourquoi ce n'est pas un « Bitwarden killer »
 
@@ -94,6 +94,8 @@ cargo test --workspace                                   # tests
 cargo audit                                              # vulnérabilités (RustSec)
 cargo deny check                                         # supply chain (bans, licences, sources)
 cargo +nightly miri test -p coffre-core                  # undefined behavior (Miri)
+RUSTFLAGS="-Zsanitizer=address" cargo test -p coffre-core --tests   # AddressSanitizer
+cargo +nightly fuzz run payload_decode -- -runs=100000    # fuzzing (libFuzzer)
 .venv/bin/python scripts/gen_vectors.py                  # régénérer les vecteurs de référence
 ```
 

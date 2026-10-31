@@ -30,7 +30,7 @@ Valider les primitives choisies avant d'écrire la moindre fonctionnalité.
 
 **DoD** : les vecteurs de test passent, la corruption est détectée, pas d'undefined behavior. **Remplie.**
 
-## Phase 2 — Format et cœur
+## Phase 2 — Format et cœur (terminée)
 
 Implémenter le format v1 (voir THREAT_MODEL.md §5 et §8).
 
@@ -38,8 +38,9 @@ Implémenter le format v1 (voir THREAT_MODEL.md §5 et §8).
 - Écriture atomique (fichier temporaire + rename) pour la résistance aux crashs.
 - Zeroization des secrets en mémoire.
 - Opérations cœur : `init`, `add`, `get`, `list`, `rm`.
+- Tests à propriétés (générateur déterministe, sans dépendance), fuzzing libFuzzer (`header_decode`, `payload_decode`), ASan et Miri.
 
-**DoD** : property-based tests sur le format, fuzzing du parser, sanitizers propres.
+**DoD** : property-based tests sur le format, fuzzing du parser, sanitizers propres. **Remplie.**
 
 ## Phase 3 — CLI
 

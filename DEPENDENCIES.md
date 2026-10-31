@@ -26,6 +26,11 @@ implémentations indépendantes (voir `coffre-core/tests/crypto_vectors.rs`) :
 | `rpassword` | 7.5 | Saisie de la phrase secrète sans écho | Évite l'affichage du mot de passe. Encapsule les appels termios, donc pas de `unsafe` dans notre code. Dépend de `rtoolbox` (petit). |
 | `zeroize` | 1.9 | Effacement de la phrase et de la valeur saisies | Mêmes raisons que côté cœur. |
 
+## Fuzzing (hors binaire)
+
+Le crate `fuzz/` est exclu du workspace et n'est jamais livré. Il dépend de `libfuzzer-sys`
+(dev uniquement) pour les cibles `header_decode` et `payload_decode`. Aucun impact sur le binaire.
+
 ## Dépendances transitives
 
 Listées et pinées dans `Cargo.lock`. Sous-composants des primitives RustCrypto, plus les
