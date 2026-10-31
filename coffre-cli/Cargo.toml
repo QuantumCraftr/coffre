@@ -1,11 +1,12 @@
 [package]
 name = "coffre-cli"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 description = "Interface en ligne de commande du coffre"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/QuantumCraftr/coffre"
-homepage = "https://github.com/QuantumCraftr/coffre"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 documentation = "https://docs.rs/coffre-cli"
 keywords = ["secrets", "vault", "cli", "security", "agents"]
 categories = ["command-line-utilities", "cryptography"]

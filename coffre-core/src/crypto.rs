@@ -18,6 +18,7 @@ pub const TAG_LEN: usize = 16;
 /// Volontairement grossière : un mauvais mot de passe et des données corrompues
 /// produisent la même erreur, pour ne pas fournir d'oracle à un attaquant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum CryptoError {
     /// La dérivation de clé a échoué (paramètres invalides).
     KeyDerivation,
@@ -26,6 +27,18 @@ pub enum CryptoError {
     /// Le déchiffrement a échoué : tag invalide.
     Decryption,
 }
+
+impl std::fmt::Display for CryptoError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CryptoError::KeyDerivation => write!(f, "key derivation failed"),
+            CryptoError::Encryption => write!(f, "encryption failed"),
+            CryptoError::Decryption => write!(f, "wrong passphrase or corrupted data"),
+        }
+    }
+}
+
+impl std::error::Error for CryptoError {}
 
 /// Paramètres de coût d'Argon2id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

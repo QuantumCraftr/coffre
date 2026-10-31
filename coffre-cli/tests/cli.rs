@@ -174,3 +174,97 @@ fn run_propagates_exit_code() {
     let out = run(coffre().args(["run", path, "--", "sh", "-c", "exit 7"]), "");
     assert_eq!(out.status.code(), Some(7));
 }
+
+#[test]
+fn run_does_not_leak_passphrase_to_child() {
+    let tmp = TempDir::new();
+    let path = tmp.0.join("vault.coffre");
+    let path = path.to_str().unwrap();
+    assert!(run(coffre().args(["init", path]), "").status.success());
+
+    let out = run(
+        coffre().args([
+            "run",
+            path,
+            "--",
+            "sh",
+            "-c",
+            "printf %s \"${COFFRE_PASSPHRASE:-unset}\"",
+        ]),
+        "",
+    );
+    assert!(out.status.success());
+    assert_eq!(stdout(&out), "unset");
+}
+
+#[test]
+fn init_rejects_empty_passphrase() {
+    let tmp = TempDir::new();
+    let path = tmp.0.join("vault.coffre");
+    let path = path.to_str().unwrap();
+    let out = coffre()
+        .args(["init", path])
+        .env("COFFRE_PASSPHRASE", "")
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+}
+
+#[test]
+fn add_rejects_name_with_newline() {
+    let tmp = TempDir::new();
+    let path = tmp.0.join("vault.coffre");
+    let path = path.to_str().unwrap();
+    assert!(run(coffre().args(["init", path]), "").status.success());
+    let out = run(coffre().args(["add", path, "bad\nname"]), "v");
+    assert!(!out.status.success());
+}
+
+#[cfg(unix)]
+#[test]
+fn non_utf8_argument_fails_gracefully() {
+    use std::os::unix::ffi::OsStrExt;
+    let bad = std::ffi::OsStr::from_bytes(b"\xff");
+    let out = coffre().arg(bad).output().unwrap();
+    assert!(!out.status.success());
+}
+
+#[test]
+fn add_rejects_name_with_control_characters() {
+    let tmp = TempDir::new();
+    let path = tmp.0.join("vault.coffre");
+    let path = path.to_str().unwrap();
+    assert!(run(coffre().args(["init", path]), "").status.success());
+    let out = run(coffre().args(["add", path, "bad\x1b[2Jname"]), "v");
+    assert!(!out.status.success());
+}
+
+#[test]
+fn add_reads_large_value_from_stdin() {
+    // Plus grand que le tampon initial : exerce la croissance du buffer de lecture.
+    let tmp = TempDir::new();
+    let path = tmp.0.join("vault.coffre");
+    let path = path.to_str().unwrap();
+    assert!(run(coffre().args(["init", path]), "").status.success());
+    let value: String = (0..100_000)
+        .map(|i| (b'a' + (i % 26) as u8) as char)
+        .collect();
+    let out = run(coffre().args(["add", path, "big"]), &value);
+    assert!(out.status.success());
+    let out = run(coffre().args(["get", path, "big"]), "");
+    assert_eq!(stdout(&out), format!("{value}\n"));
+}
+
+#[test]
+fn run_reports_missing_command() {
+    let tmp = TempDir::new();
+    let path = tmp.0.join("vault.coffre");
+    let path = path.to_str().unwrap();
+    assert!(run(coffre().args(["init", path]), "").status.success());
+    let out = run(
+        coffre().args(["run", path, "--", "coffre-no-such-command"]),
+        "",
+    );
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("cannot run 'coffre-no-such-command'"));
+}

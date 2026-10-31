@@ -1,11 +1,12 @@
 [package]
 name = "coffre-core"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 description = "Coeur du coffre : format, chiffrement, zeroization"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/QuantumCraftr/coffre"
-homepage = "https://github.com/QuantumCraftr/coffre"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 documentation = "https://docs.rs/coffre-core"
 keywords = ["secrets", "vault", "security", "encryption", "aead"]
 categories = ["cryptography"]

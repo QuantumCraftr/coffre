@@ -28,16 +28,16 @@
 
 Bitwarden and KeePass are battle-tested and very good. `coffre` does not try to do more: it tries to do **less**, so a single person can audit the whole codebase. Three axes:
 
-1. **Verifiability**: a tiny scope you can read in full, with no dependencies.
+1. **Verifiability**: a tiny scope you can read in full, with a minimal, fully justified dependency set.
 2. **Open format**: a file whose spec fits on one page, decryptable 20 years from now.
 3. **AI-agent bridge**: inject secrets as environment variables without ever exposing their value in a conversation.
 
 ## Principles
 
-- **Zero dependencies** by default. Every dependency requires a written justification.
+- **Minimal dependencies**: none added by default; every dependency requires a written justification.
 - **Zero `unsafe`** (or confined and justified line by line).
 - **Small scope**: less surface, fewer possible flaws.
-- **Verification over speed**: official test vectors, property-based testing, fuzzing, mandatory human review.
+- **Verification over speed**: cross-validation, property-based testing, fuzzing, mandatory human review.
 
 ## Target features (v1)
 
@@ -53,8 +53,8 @@ Bitwarden and KeePass are battle-tested and very good. `coffre` does not try to 
 | Key derivation | Argon2id (m=64 MiB, t=3, p=1) |
 | Encryption | XChaCha20-Poly1305 (256-bit key, 192-bit nonce) |
 | Integrity | AEAD Poly1305 tag, bound to the header |
-| Dependencies | Zero or near-zero, pinned RustCrypto primitives |
-| Verification | Official test vectors (RFC 9106, RFC 8439) |
+| Dependencies | Minimal and justified (5 direct), pinned RustCrypto primitives |
+| Verification | Cross-validation (libsodium, reference C Argon2) |
 
 The full threat model is documented and versioned: [THREAT_MODEL.md](THREAT_MODEL.md).
 Every dependency is justified: [DEPENDENCIES.md](DEPENDENCIES.md).
@@ -86,6 +86,8 @@ through an environment variable (visible to the same user and root).
 `run` injects the requested secrets into the child process environment, without ever
 printing them from `coffre`. Known limit: a process environment is readable by the same
 user and root (`/proc/<pid>/environ`). Intended for agents and scripts.
+
+`get` prints the value followed by a newline; keep that in mind for binary secrets.
 
 ## Useful commands
 

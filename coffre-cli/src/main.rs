@@ -14,6 +14,7 @@ enum CliError {
     Io(io::Error),
     PassphraseMismatch,
     NotFound(String),
+    Spawn(String, io::Error),
 }
 
 impl std::fmt::Display for CliError {
@@ -24,6 +25,7 @@ impl std::fmt::Display for CliError {
             CliError::Io(e) => write!(f, "{e}"),
             CliError::PassphraseMismatch => write!(f, "passphrases do not match"),
             CliError::NotFound(name) => write!(f, "secret not found: {name}"),
+            CliError::Spawn(program, e) => write!(f, "cannot run '{program}': {e}"),
         }
     }
 }
@@ -52,8 +54,21 @@ fn main() -> ExitCode {
     }
 }
 
+fn collect_args() -> Result<Vec<String>, CliError> {
+    let mut args = Vec::new();
+    for arg in std::env::args_os().skip(1) {
+        match arg.into_string() {
+            Ok(arg) => args.push(arg),
+            Err(_) => {
+                return Err(CliError::Usage("arguments must be valid UTF-8".to_string()));
+            }
+        }
+    }
+    Ok(args)
+}
+
 fn run() -> Result<ExitCode, CliError> {
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let args = collect_args()?;
     let Some((command, rest)) = args.split_first() else {
         return Err(CliError::Usage(usage().to_string()));
     };
@@ -90,6 +105,9 @@ fn cmd_init(rest: &[String]) -> Result<(), CliError> {
         )));
     }
     let passphrase = read_passphrase(true)?;
+    if passphrase.is_empty() {
+        return Err(CliError::Usage("passphrase must not be empty".to_string()));
+    }
     Vault::create(target, passphrase.as_bytes(), KdfParams::default())?;
     eprintln!("coffre: vault created: {}", target.display());
     Ok(())
@@ -97,6 +115,7 @@ fn cmd_init(rest: &[String]) -> Result<(), CliError> {
 
 fn cmd_add(rest: &[String]) -> Result<(), CliError> {
     let (path, name) = two_args(rest, "add <path> <name>")?;
+    validate_name(name)?;
     let passphrase = read_passphrase(false)?;
     let value = read_value()?;
     let mut vault = Vault::open(Path::new(path), passphrase.as_bytes())?;
@@ -180,12 +199,24 @@ fn cmd_run(rest: &[String]) -> Result<ExitCode, CliError> {
 
     let mut child = Command::new(command[0].as_str());
     child.args(&command[1..]);
+    child.env_remove("COFFRE_PASSPHRASE");
     for (name, value) in &values {
         child.env(name.as_str(), env_value(value.as_slice()));
     }
 
-    let status = child.status()?;
-    Ok(exit_code_from(status))
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        let error = child.exec();
+        Err(CliError::Spawn(command[0].clone(), error))
+    }
+    #[cfg(not(unix))]
+    {
+        let status = child
+            .status()
+            .map_err(|e| CliError::Spawn(command[0].clone(), e))?;
+        Ok(exit_code_from(status))
+    }
 }
 
 fn is_env_name(name: &str) -> bool {
@@ -195,6 +226,18 @@ fn is_env_name(name: &str) -> bool {
         _ => return false,
     }
     chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+fn validate_name(name: &str) -> Result<(), CliError> {
+    if name.is_empty() {
+        return Err(CliError::Usage("secret name must not be empty".to_string()));
+    }
+    if name.chars().any(char::is_control) {
+        return Err(CliError::Usage(
+            "secret name must not contain control characters".to_string(),
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(unix)]
@@ -208,6 +251,7 @@ fn env_value(bytes: &[u8]) -> OsString {
     OsString::from(String::from_utf8_lossy(bytes).into_owned())
 }
 
+#[cfg(not(unix))]
 fn exit_code_from(status: std::process::ExitStatus) -> ExitCode {
     match status.code() {
         Some(code) if (0..=255).contains(&code) => ExitCode::from(code as u8),
@@ -226,7 +270,7 @@ fn read_passphrase(confirm: bool) -> Result<Zeroizing<String>, CliError> {
     };
     let passphrase = Zeroizing::new(rpassword::prompt_password(label)?);
     if confirm {
-        let again = rpassword::prompt_password("Confirm passphrase: ")?;
+        let again = Zeroizing::new(rpassword::prompt_password("Confirm passphrase: ")?);
         if passphrase.as_str() != again.as_str() {
             return Err(CliError::PassphraseMismatch);
         }
@@ -239,16 +283,37 @@ fn read_value() -> Result<Zeroizing<Vec<u8>>, CliError> {
         let value = rpassword::prompt_password("Secret value: ")?;
         Ok(Zeroizing::new(value.into_bytes()))
     } else {
-        let mut buffer = Vec::new();
-        io::stdin().read_to_end(&mut buffer)?;
+        let mut buffer = read_to_end_zeroizing(&mut io::stdin().lock())?;
         if buffer.last() == Some(&b'\n') {
             buffer.pop();
             if buffer.last() == Some(&b'\r') {
                 buffer.pop();
             }
         }
-        Ok(Zeroizing::new(buffer))
+        Ok(buffer)
     }
+}
+
+/// Lit tout `reader` sans laisser de copie du secret en mémoire libérée : à chaque
+/// agrandissement, l'ancien buffer est effacé avant d'être rendu à l'allocateur.
+fn read_to_end_zeroizing(reader: &mut impl Read) -> io::Result<Zeroizing<Vec<u8>>> {
+    let mut buffer = Zeroizing::new(vec![0u8; 4096]);
+    let mut len = 0;
+    loop {
+        if len == buffer.len() {
+            let mut bigger = Zeroizing::new(vec![0u8; buffer.len() * 2]);
+            bigger[..len].copy_from_slice(&buffer[..len]);
+            buffer = bigger;
+        }
+        match reader.read(&mut buffer[len..]) {
+            Ok(0) => break,
+            Ok(n) => len += n,
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => {}
+            Err(e) => return Err(e),
+        }
+    }
+    buffer.truncate(len);
+    Ok(buffer)
 }
 
 fn one_arg<'a>(rest: &'a [String], usage: &str) -> Result<&'a str, CliError> {

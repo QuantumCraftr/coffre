@@ -194,3 +194,30 @@ fn unsupported_params_rejected_before_kdf() {
     let err = expect_err(Vault::open(&path, b"pass"));
     assert!(matches!(err, VaultError::UnsupportedParams));
 }
+
+#[test]
+fn create_rejects_unsupported_params() {
+    let tmp = TempDir::new();
+    let path = tmp.vault_path();
+    let params = KdfParams {
+        m_cost: 32,
+        t_cost: 17,
+        p_cost: 1,
+    };
+    let err = expect_err(Vault::create(&path, b"pass", params));
+    assert!(matches!(err, VaultError::UnsupportedParams));
+}
+
+#[test]
+fn create_rejects_m_cost_below_argon2_minimum() {
+    let tmp = TempDir::new();
+    let path = tmp.vault_path();
+    let params = KdfParams {
+        m_cost: 8,
+        t_cost: 1,
+        p_cost: 2,
+    };
+    let err = expect_err(Vault::create(&path, b"pass", params));
+    assert!(matches!(err, VaultError::UnsupportedParams));
+    assert!(!path.exists(), "no file must be written on rejection");
+}

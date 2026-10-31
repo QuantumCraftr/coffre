@@ -3,6 +3,8 @@
 
 use std::collections::BTreeMap;
 
+use zeroize::Zeroize;
+
 use crate::crypto::{NONCE_LEN, SALT_LEN};
 
 /// Octets magiques en tête de fichier.
@@ -19,6 +21,7 @@ pub type Entries = BTreeMap<String, Vec<u8>>;
 
 /// Erreur de lecture ou d'écriture du format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum FormatError {
     /// Données trop courtes pour un en-tête ou un payload valide.
     TooShort,
@@ -37,6 +40,27 @@ pub enum FormatError {
     /// Octets résiduels après le payload.
     TrailingData,
 }
+
+impl std::fmt::Display for FormatError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FormatError::TooShort => write!(f, "data too short"),
+            FormatError::BadMagic => write!(f, "bad magic bytes"),
+            FormatError::UnsupportedVersion(version) => {
+                write!(f, "unsupported format version: {version}")
+            }
+            FormatError::UnsupportedKdf(kdf_id) => {
+                write!(f, "unsupported key derivation algorithm: {kdf_id}")
+            }
+            FormatError::InvalidUtf8 => write!(f, "invalid UTF-8 secret name"),
+            FormatError::DuplicateName => write!(f, "duplicate secret name"),
+            FormatError::LengthOverflow => write!(f, "length overflow"),
+            FormatError::TrailingData => write!(f, "trailing data after payload"),
+        }
+    }
+}
+
+impl std::error::Error for FormatError {}
 
 /// En-tête de fichier, en clair et authentifié comme AAD.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -113,10 +137,20 @@ impl Header {
 /// Sérialise les entrées en un payload binaire déterministe.
 ///
 /// L'ordre est celui de `BTreeMap` (trié par nom), donc un même contenu produit
-/// toujours les mêmes octets.
+/// toujours les mêmes octets. La taille exacte est calculée d'avance pour éviter
+/// les réallocations, qui laisseraient des copies du clair en mémoire.
 pub fn encode_payload(entries: &Entries) -> Result<Vec<u8>, FormatError> {
     let count = u32::try_from(entries.len()).map_err(|_| FormatError::LengthOverflow)?;
-    let mut out = Vec::new();
+    let mut size = 4usize;
+    for (name, value) in entries {
+        size = size
+            .checked_add(4)
+            .and_then(|s| s.checked_add(name.len()))
+            .and_then(|s| s.checked_add(4))
+            .and_then(|s| s.checked_add(value.len()))
+            .ok_or(FormatError::LengthOverflow)?;
+    }
+    let mut out = Vec::with_capacity(size);
     out.extend_from_slice(&count.to_be_bytes());
     for (name, value) in entries {
         let name_len = u32::try_from(name.len()).map_err(|_| FormatError::LengthOverflow)?;
@@ -132,27 +166,47 @@ pub fn encode_payload(entries: &Entries) -> Result<Vec<u8>, FormatError> {
 /// Désérialise un payload.
 ///
 /// Ne panique jamais : toute entrée invalide (tronquée, longueur débordante,
-/// UTF-8 invalide, doublon, octets en trop) renvoie une erreur.
+/// UTF-8 invalide, doublon, octets en trop) renvoie une erreur. En cas d'erreur,
+/// les entrées déjà décodées sont effacées.
 pub fn decode_payload(bytes: &[u8]) -> Result<Entries, FormatError> {
+    let mut entries = Entries::new();
+    match decode_payload_into(bytes, &mut entries) {
+        Ok(()) => Ok(entries),
+        Err(e) => {
+            zeroize_entries(&mut entries);
+            Err(e)
+        }
+    }
+}
+
+fn decode_payload_into(bytes: &[u8], entries: &mut Entries) -> Result<(), FormatError> {
     let mut pos = 0usize;
     let count = read_u32(bytes, &mut pos)?;
-    let mut entries = Entries::new();
     for _ in 0..count {
         let name_len = read_u32(bytes, &mut pos)? as usize;
         let name_bytes = take(bytes, &mut pos, name_len)?;
-        let name = std::str::from_utf8(name_bytes)
-            .map_err(|_| FormatError::InvalidUtf8)?
-            .to_owned();
+        let name = std::str::from_utf8(name_bytes).map_err(|_| FormatError::InvalidUtf8)?;
         let value_len = read_u32(bytes, &mut pos)? as usize;
-        let value = take(bytes, &mut pos, value_len)?.to_vec();
-        if entries.insert(name, value).is_some() {
+        let value = take(bytes, &mut pos, value_len)?;
+        if entries.contains_key(name) {
             return Err(FormatError::DuplicateName);
         }
+        // Allocation seulement une fois l'entrée validée : aucune copie du clair
+        // n'est abandonnée sans zeroization sur un chemin d'erreur.
+        entries.insert(name.to_owned(), value.to_vec());
     }
     if pos != bytes.len() {
         return Err(FormatError::TrailingData);
     }
-    Ok(entries)
+    Ok(())
+}
+
+fn zeroize_entries(entries: &mut Entries) {
+    let drained = std::mem::take(entries);
+    for (mut name, mut value) in drained {
+        name.zeroize();
+        value.zeroize();
+    }
 }
 
 fn read_u32(bytes: &[u8], pos: &mut usize) -> Result<u32, FormatError> {

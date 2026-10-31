@@ -42,6 +42,20 @@ répété n fois :
 Les entrées sont sérialisées dans l'ordre trié des noms (`BTreeMap`), pour un payload
 déterministe à contenu égal.
 
+## Bornes des paramètres Argon2
+
+L'en-tête est lu **avant** l'authentification : un fichier piégé pourrait demander une
+dérivation démesurée. Un lecteur conforme refuse le fichier, sans lancer Argon2, si :
+
+| Paramètre | Borne acceptée |
+| --- | --- |
+| `m_cost` | ≤ 524 288 KiB (512 MiB), et ≥ 8 × `p_cost` (minimum Argon2) |
+| `t_cost` | 1 à 10 |
+| `p_cost` | 1 à 16 |
+
+Les mêmes bornes s'appliquent à la création. Valeurs par défaut : `m_cost = 65536`
+(64 MiB), `t_cost = 3`, `p_cost = 1`.
+
 ## Règles de sécurité
 
 - `salt` : 32 octets tirés du CSPRNG, **unique par coffre**, stocké en clair.

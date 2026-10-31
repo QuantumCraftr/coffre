@@ -28,16 +28,16 @@
 
 Bitwarden et KeePass sont éprouvés et très bons. `coffre` n'essaie pas de faire plus de choses : il essaie d'en faire **moins**, pour qu'une personne seule puisse auditer le code de bout en bout. Trois axes :
 
-1. **Vérifiabilité** : un périmètre minuscule, lisible en entier, sans dépendance.
+1. **Vérifiabilité** : un périmètre minuscule, lisible en entier, avec un minimum de dépendances, toutes justifiées.
 2. **Format ouvert** : un fichier dont la spec tient sur une page, décryptable dans 20 ans.
 3. **Pont avec les agents IA** : injecter des secrets en variables d'environnement sans jamais exposer leur valeur en clair dans une conversation.
 
 ## Principes
 
-- **Zéro dépendance** par défaut. Toute dépendance exige une justification écrite.
+- **Dépendances minimales** : aucune ajoutée par défaut ; toute dépendance exige une justification écrite.
 - **Zéro `unsafe`** (ou confiné et justifié ligne à ligne).
 - **Petit périmètre** : moins de surface, moins de failles possibles.
-- **Vérification plutôt que vitesse** : test vectors officiels, property-based testing, fuzzing, revue humaine obligatoire.
+- **Vérification plutôt que vitesse** : validation croisée, property-based testing, fuzzing, revue humaine obligatoire.
 
 ## Fonctionnalités cibles (v1)
 
@@ -53,8 +53,8 @@ Bitwarden et KeePass sont éprouvés et très bons. `coffre` n'essaie pas de fai
 | Dérivation de clé | Argon2id (m=64 MiB, t=3, p=1) |
 | Chiffrement | XChaCha20-Poly1305 (clé 256 bits, nonce 192 bits) |
 | Intégrité | Tag Poly1305 de l'AEAD, bindé sur l'en-tête |
-| Dépendances | Zéro ou quasi, primitives RustCrypto pinées |
-| Vérification | Test vectors officiels (RFC 9106, RFC 8439) |
+| Dépendances | Minimales et justifiées (5 directes), primitives RustCrypto pinées |
+| Vérification | Validation croisée (libsodium, implémentation C d'Argon2) |
 
 Le modèle de menace complet est documenté et versionné : [THREAT_MODEL.md](THREAT_MODEL.md).
 Chaque dépendance est justifiée : [DEPENDENCIES.md](DEPENDENCIES.md).
@@ -86,6 +86,8 @@ passé par variable d'environnement (visible pour le même utilisateur et root).
 `run` injecte les secrets demandés dans l'environnement du process enfant, sans jamais les
 afficher côté `coffre`. Limite assumée : l'environnement d'un process est lisible par le même
 utilisateur et root (`/proc/<pid>/environ`). À réserver aux agents et scripts.
+
+`get` écrit la valeur suivie d'un saut de ligne ; tiens-en compte pour les secrets binaires.
 
 ## Commandes utiles
 

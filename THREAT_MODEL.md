@@ -86,7 +86,7 @@ en post-quantique hybride.
 | Modification/corruption du fichier | Tag Poly1305 : toute altération est refusée |
 | Réutilisation de nonce | Nonce 192 bits aléatoire (XChaCha20) |
 | Fuite mémoire des secrets | Zeroization explicite, structures à accès confiné |
-| Supply chain (typosquat, slop squat, backdoor type XZ) | Zéro dépendance ou quasi, pinning strict, builds reproductibles, review humaine |
+| Supply chain (typosquat, slop squat, backdoor type XZ) | Dépendances minimales et justifiées, pinning strict, builds reproductibles, review humaine |
 | Oracle de vérification | Pas de valeur de contrôle en clair dans l'en-tête |
 | Crash pendant l'écriture | Écriture atomique (fichier temporaire + rename) |
 | Side-channels logiciels (timing/cache) | ChaCha20 constant-time ; Argon2id résistant par conception |
@@ -107,11 +107,21 @@ traîner n'importe où sans que rien ne fuie.
 
 ## 8. Règles d'ingénierie (le harness)
 
-- **Zéro dépendance** par défaut. Toute dépendance ajoutée exige une justification écrite et un audit.
+- **Dépendances minimales** : aucune ajoutée par défaut ; toute dépendance exige une justification écrite et un audit.
 - **Zéro `unsafe`** (ou confiné et justifié ligne à ligne).
-- Primitives validées par **test vectors officiels** (RFC 9106 pour Argon2, RFC 8439 pour ChaCha20-Poly1305).
-- **Property-based testing** (proptest), **fuzzing** (cargo-fuzz), **Miri**, **sanitizers** (ASan/UBSan) en CI.
+- Primitives validées par **validation croisée** : XChaCha20-Poly1305 identique à libsodium, Argon2id identique à l'implémentation C de référence (argon2-cffi).
+- **Property-based testing** (générateur déterministe sans dépendance), **fuzzing** (cargo-fuzz), **Miri**, **ASan** en CI.
 - **Builds reproductibles** : lockfile committé, builds hermétiques.
 - **Revue humaine obligatoire** : aucun diff IA ne fusionne sans lecture ligne à ligne.
 - Chaque bug corrigé devient un **test de régression** permanent.
 - Tout changement de ce document suit le même processus de revue que le code.
+
+## 9. Limites connues
+
+- **Concurrence** : pas de verrou de fichier. Deux écritures simultanées se terminent en « dernier gagne ».
+- **Symlinks** : `rename` remplace l'entrée de destination ; un coffre atteint via un lien symbolique voit le lien remplacé, pas la cible.
+- **Windows** : pas de `fsync` de dossier, pas de permissions `0600`, et les secrets binaires non-UTF8 sont convertis avec perte pour l'injection via `run`.
+- **Zeroization** : au mieux. Des copies transitoires de la clé peuvent exister sur la pile (`Key::from`, retour de `derive_key`) ; le tampon interne de `stdin` (lecture de `add`) n'est pas effacé ; l'OS peut copier des pages (swap, core dump).
+- **Systèmes de fichiers** : `init` écrit directement le fichier final (`create_new`), sans renommage ; un crash pendant `init` peut laisser un coffre tronqué, à recréer. Les écritures suivantes sont atomiques.
+- **`run`** : l'environnement du process enfant reste lisible par le même utilisateur et root. La CLI retire `COFFRE_PASSPHRASE` de l'environnement de l'enfant. Sur Unix, `coffre` est remplacé par l'enfant (`exec`) : aucun process parent ne garde la phrase secrète ni les secrets en mémoire. Sur Windows, le parent attend l'enfant et garde son propre environnement.
+- **`get`** : la valeur est suivie d'un saut de ligne.
