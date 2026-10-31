@@ -33,3 +33,38 @@ jobs:
         run: cargo audit
       - name: Deny
         run: cargo deny check
+
+  miri:
+    name: miri (nightly)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - uses: Swatinem/rust-cache@v2
+      - name: Miri
+        run: cargo +nightly miri test -p coffre-core --test crypto_vectors --test format --test properties
+
+  sanitizers:
+    name: address sanitizer (nightly)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - name: AddressSanitizer
+        run: RUSTFLAGS="-Zsanitizer=address" cargo test -p coffre-core --tests
+
+  fuzz:
+    name: fuzz smoke (nightly)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@cargo-fuzz
+      - name: Fuzz header_decode
+        run: cargo +nightly fuzz run header_decode -- -runs=50000 -max_len=256
+      - name: Fuzz payload_decode
+        run: cargo +nightly fuzz run payload_decode -- -runs=50000 -max_len=1024
