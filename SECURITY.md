@@ -1,40 +1,40 @@
-# Politique de sécurité
+# Security policy
 
-## Statut
+## Status
 
-`coffre` est en **pré-alpha**. Il n'a pas encore été audité et ne doit pas stocker de secrets
-critiques. Les primitives sont validées par validation croisée, mais l'ensemble n'a pas subi
-d'audit externe.
+`coffre` is **pre-alpha**. It has not been audited and must not store critical secrets.
+The primitives are validated by cross-validation, but the whole has not undergone an external
+audit.
 
-## Signaler une vulnérabilité
+## Reporting a vulnerability
 
-Merci de **ne pas ouvrir d'issue publique** pour une faille de sécurité.
+Please do **not** open a public issue for a security vulnerability.
 
-- GitHub : onglet **Security** → **Report a vulnerability** (advisory privée).
-- Email : `jbdev31@gmail.com`, objet `[coffre security]`.
+- GitHub: **Security** tab → **Report a vulnerability** (private advisory).
+- Email: `jbdev31@gmail.com`, subject `[coffre security]`.
 
-Merci d'inclure :
+Please include:
 
-- une description de la vulnérabilité et de son impact ;
-- les étapes de reproduction ou une preuve de concept ;
-- la version ou le commit concerné ;
-- ton nom ou pseudo si tu souhaites être crédité.
+- a description of the vulnerability and its impact;
+- reproduction steps or a proof of concept;
+- the affected version or commit;
+- your name or handle if you want to be credited.
 
-## Périmètre
+## Scope
 
-Couvre notamment : format de fichier, chiffrement, dérivation de clé, écriture atomique,
-zeroization, CLI et mode `run`.
+Covers in particular: file format, encryption, key derivation, atomic writes, zeroization,
+CLI and `run` mode.
 
-Hors périmètre (assumé, voir [`THREAT_MODEL.md`](THREAT_MODEL.md)) : attaquant root sur la
-machine en cours d'usage, keylogger, cold boot, evil maid, exposition de l'environnement d'un
-process enfant en mode `run`, `COFFRE_PASSPHRASE` visible dans l'environnement du process.
+Out of scope (accepted, see [`THREAT_MODEL.md`](THREAT_MODEL.md)): root attacker on the machine
+during use, keylogger, cold boot, evil maid, exposure of a child process environment in `run`
+mode, `COFFRE_PASSPHRASE` visible in the process environment.
 
-## Délais
+## Timelines
 
-- Accusé de réception sous 7 jours.
-- Correctif ou plan sous 30 jours pour les failles confirmées, selon la gravité.
-- Divulgation coordonnée après publication du correctif.
+- Acknowledgement within 7 days.
+- Fix or plan within 30 days for confirmed vulnerabilities, depending on severity.
+- Coordinated disclosure after the fix is published.
 
-## Pas de bug bounty
+## No bug bounty
 
-Projet bénévole, pas de récompense financière. Crédit dans l'advisory si souhaité.
+Volunteer project, no financial reward. Credit in the advisory if desired.

@@ -1,43 +1,44 @@
-# Dépendances
+# Dependencies
 
-Règle : **zéro dépendance par défaut**. Toute dépendance ajoutée doit être justifiée ici,
-pinée dans `Cargo.lock` (committé), et validée par revue humaine.
+Rule: **minimal dependencies by default**. Any added dependency must be justified here, pinned
+in `Cargo.lock` (committed), and validated by human review.
 
-## Dépendances directes (coffre-core)
+## Direct dependencies (coffre-core)
 
-| Crate | Version | Rôle | Justification |
+| Crate | Version | Role | Justification |
 | --- | --- | --- | --- |
-| `argon2` | 0.6 | Dérivation de clé (Argon2id) | Standard OWASP. Features `alloc` + `zeroize` (matériel de clé effacé à la destruction), `getrandom`/`password-hash` désactivés. |
-| `chacha20poly1305` | 0.11 | AEAD XChaCha20-Poly1305 | Constant-time en pur logiciel, nonce 192 bits. Features `alloc` + `zeroize`, `getrandom` désactivé. |
-| `getrandom` | 0.4 | CSPRNG de l'OS | Sel unique par coffre, nonce neuf à chaque écriture, suffixe des fichiers temporaires. Features `std` + `sys_rng`. |
-| `zeroize` | 1.9 | Effacement mémoire | Zeroization de la clé dérivée, du payload déchiffré et des noms/valeurs de secrets à la destruction. |
+| `argon2` | 0.6 | Key derivation (Argon2id) | OWASP standard. Features `alloc` + `zeroize` (key material wiped on drop), `getrandom`/`password-hash` disabled. |
+| `chacha20poly1305` | 0.11 | XChaCha20-Poly1305 AEAD | Constant-time in pure software, 192-bit nonce. Features `alloc` + `zeroize`, `getrandom` disabled. |
+| `getrandom` | 0.4 | OS CSPRNG | Salt unique per vault, fresh nonce on every write, temporary file suffix. Features `std` + `sys_rng`. |
+| `zeroize` | 1.9 | Memory wiping | Zeroization of the derived key, decrypted payload and secret names/values on drop. |
 
-Les primitives `argon2` et `chacha20poly1305` sont **RustCrypto**, pur Rust, sans `unsafe`
-dans notre code. Leur correction est vérifiée par **validation croisée** contre des
-implémentations indépendantes (voir `coffre-core/tests/crypto_vectors.rs`) :
+The `argon2` and `chacha20poly1305` primitives are **RustCrypto**, pure Rust, with no `unsafe`
+in our code. Their correctness is verified by **cross-validation** against independent
+implementations (see `coffre-core/tests/crypto_vectors.rs`):
 
-- Argon2id : sortie identique à l'implémentation C de référence (via `argon2-cffi`).
-- XChaCha20-Poly1305 : sortie identique à libsodium (via PyNaCl).
+- Argon2id: output identical to the reference C implementation (via `argon2-cffi`).
+- XChaCha20-Poly1305: output identical to libsodium (via PyNaCl).
 
-## Dépendances de `coffre-cli`
+## `coffre-cli` dependencies
 
-| Crate | Version | Rôle | Justification |
+| Crate | Version | Role | Justification |
 | --- | --- | --- | --- |
-| `rpassword` | 7.5 | Saisie de la phrase secrète sans écho | Évite l'affichage du mot de passe. Encapsule les appels termios, donc pas de `unsafe` dans notre code. Dépend de `rtoolbox` (petit). |
-| `zeroize` | 1.9 | Effacement de la phrase et de la valeur saisies | Mêmes raisons que côté cœur. |
+| `rpassword` | 7.5 | Echo-free passphrase input | Avoids displaying the password. Wraps termios calls, so no `unsafe` in our code. Depends on `rtoolbox` (small). |
+| `zeroize` | 1.9 | Wiping of the entered passphrase and value | Same reasons as the core. |
 
-## Fuzzing (hors binaire)
+## Fuzzing (not shipped)
 
-Le crate `fuzz/` est exclu du workspace et n'est jamais livré. Il dépend de `libfuzzer-sys`
-(dev uniquement) pour les cibles `header_decode` et `payload_decode`. Aucun impact sur le binaire.
+The `fuzz/` crate is excluded from the workspace and never shipped. It depends on
+`libfuzzer-sys` (dev only) for the `header_decode` and `payload_decode` targets. No impact on
+the binary.
 
-## Dépendances transitives
+## Transitive dependencies
 
-Listées et pinées dans `Cargo.lock`. Sous-composants des primitives RustCrypto, plus les
-dépendances de `getrandom` (`r-efi`, `rand_core` pour les backends plateforme). Vérifiées
-par `cargo audit` (RustSec) et `cargo deny` (bans, licences, sources) à chaque build.
+Listed and pinned in `Cargo.lock`. Sub-components of the RustCrypto primitives, plus the
+`getrandom` dependencies (`r-efi`, `rand_core` for platform backends). Checked by `cargo audit`
+(RustSec) and `cargo deny` (bans, licenses, sources) on every build.
 
-## Outils de développement (non liés au binaire)
+## Development tools (not linked to the binary)
 
-- `scripts/gen_vectors.py` : génère les vecteurs de référence. Utilise un venv Python
-  isolé (`argon2-cffi`, `pynacl`). Aucun impact sur le binaire Rust.
+- `scripts/gen_vectors.py`: generates the reference vectors. Uses an isolated Python venv
+  (`argon2-cffi`, `pynacl`). No impact on the Rust binary.

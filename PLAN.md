@@ -1,79 +1,79 @@
 # Plan
 
-Le plan avance par phases, chacune avec une définition de done (DoD) stricte.
-Aucune phase n'est considérée finie tant que sa DoD n'est pas entièrement vérifiée.
-La vitesse n'est pas un critère ; la vérification en est un.
+The plan proceeds in phases, each with a strict definition of done (DoD).
+A phase is not considered finished until its DoD is fully verified.
+Speed is not a criterion; verification is.
 
-## Principe directeur
+## Guiding principle
 
-On n'avance pas tant que la phase en cours n'est pas irréprochable.
-L'IA est utilisée comme auditeur (tests, fuzzers, contre-exemples, revue), pas comme générateur aveugle.
+We do not move on until the current phase is beyond reproach.
+AI is used as an auditor (tests, fuzzers, counterexamples, review), not as a blind generator.
 
-## Phase 0 — Socle
+## Phase 0 — Foundation
 
-Mise en place de l'infrastructure de vérification avant toute ligne de crypto.
+Set up the verification infrastructure before any line of crypto.
 
-- `git init`, `cargo init`, workspace Rust (`coffre-core` + `coffre-cli`).
-- CI (GitHub Actions) : `cargo fmt --check`, `clippy -D warnings`, `cargo test`, `cargo audit`, `cargo deny`.
-- Builds reproductibles : `Cargo.lock` committé, builds en `--locked` et hermétiques.
-- Charte : interdiction de dépendance non justifiée, interdiction d'`unsafe`.
+- `git init`, `cargo init`, Rust workspace (`coffre-core` + `coffre-cli`).
+- CI (GitHub Actions): `cargo fmt --check`, `clippy -D warnings`, `cargo test`, `cargo audit`, `cargo deny`.
+- Reproducible builds: committed `Cargo.lock`, `--locked` and hermetic builds.
+- Charter: no unjustified dependency, no `unsafe`.
 
-**DoD** : CI verte sur un commit vide, zéro warning clippy, zéro dépendance ajoutée.
+**DoD**: green CI on an empty commit, zero clippy warnings, zero added dependency.
 
-## Phase 1 — Spike cryptographique (terminée)
+## Phase 1 — Cryptographic spike (done)
 
-Valider les primitives choisies avant d'écrire la moindre fonctionnalité.
+Validate the chosen primitives before writing any feature.
 
-- Argon2id et XChaCha20-Poly1305 (RustCrypto) vérifiés par **validation croisée** contre des implémentations indépendantes (référence C pour Argon2id, libsodium pour XChaCha20).
-- Preuves : round-trip correct, échec propre sur mauvais mot de passe, détection d'un bit modifié, rejet d'un mauvais AAD/nonce.
-- Mesures : `miri` propre (8/8 tests), zéro `unsafe` dans notre code.
+- Argon2id and XChaCha20-Poly1305 (RustCrypto) verified by **cross-validation** against independent implementations (reference C for Argon2id, libsodium for XChaCha20).
+- Proofs: correct round-trip, clean failure on a wrong passphrase, detection of a modified bit, rejection of a bad AAD/nonce.
+- Measures: clean `miri` (8/8 tests), zero `unsafe` in our code.
 
-**DoD** : les vecteurs de test passent, la corruption est détectée, pas d'undefined behavior. **Remplie.**
+**DoD**: test vectors pass, corruption is detected, no undefined behavior. **Fulfilled.**
 
-## Phase 2 — Format et cœur (terminée)
+## Phase 2 — Format and core (done)
 
-Implémenter le format v1 (voir THREAT_MODEL.md §5 et §8).
+Implement format v1 (see THREAT_MODEL.md §5 and §8).
 
-- Sérialisation du format : en-tête + payload AEAD.
-- Écriture atomique (fichier temporaire + rename) pour la résistance aux crashs.
-- Zeroization des secrets en mémoire.
-- Opérations cœur : `init`, `add`, `get`, `list`, `rm`.
-- Tests à propriétés (générateur déterministe, sans dépendance), fuzzing libFuzzer (`header_decode`, `payload_decode`), ASan et Miri.
+- Format serialization: AEAD header + payload.
+- Atomic write (temporary file + rename) for crash resistance.
+- Zeroization of secrets in memory.
+- Core operations: `init`, `add`, `get`, `list`, `rm`.
+- Property-based tests (dependency-free deterministic generator), libFuzzer fuzzing (`header_decode`, `payload_decode`), ASan and Miri.
 
-**DoD** : property-based tests sur le format, fuzzing du parser, sanitizers propres. **Remplie.**
+**DoD**: property-based tests on the format, parser fuzzing, clean sanitizers. **Fulfilled.**
 
 ## Phase 3 — CLI
 
-Le binaire `coffre`.
+The `coffre` binary.
 
-- Sous-commandes : `init`, `add`, `get`, `list`, `rm`.
-- Règle d'or : les secrets ne sortent jamais sur stdout/logs sauf demande explicite.
-- Gestion d'erreur sans fuite d'information.
+- Subcommands: `init`, `add`, `get`, `list`, `rm`.
+- Golden rule: secrets never go to stdout/logs unless explicitly requested.
+- Error handling without information leaks.
 
-**DoD** : tests d'intégration, aucune valeur de secret dans les logs ni les messages d'erreur.
+**DoD**: integration tests, no secret value in logs or error messages.
 
-## Phase 4 — Courtier pour agents IA
+## Phase 4 — AI agent broker
 
-La fonctionnalité différenciante.
+The differentiating feature.
 
-- Mode `run` : injecte les secrets demandés en variables d'environnement d'un process enfant, sans jamais les afficher.
-- Références par nom (jamais par valeur), portée limitée (inject-all ou inject par liste de noms).
-- Journalisation d'audit minimale, sans valeurs.
+- `run` mode: inject the requested secrets as environment variables of a child process, without ever printing them.
+- References by name (never by value), limited scope (inject-all or inject by name list).
+- Minimal audit logging, without values.
 
-**DoD** : test prouvant que la valeur n'apparaît jamais dans la sortie, les logs ni le contexte d'un agent.
+**DoD**: test proving the value never appears in output, logs or an agent's context.
 
-## Phase 5 — Durcissement, audit, publication
+## Phase 5 — Hardening, audit, release
 
-- Revue ligne à ligne de tout le périmètre, par un humain.
-- Audit externe optionnel du format et de la crypto.
-- UI visuelle séparée (TUI puis GUI) qui parle au cœur sans jamais voir les secrets.
-- Publication crates.io, README et docs en anglais pour la communauté.
+- Line-by-line review of the whole scope, by a human.
+- Optional external audit of the format and crypto.
+- Separate visual UI (TUI then GUI) that talks to the core without ever seeing secrets.
+- crates.io release, English README and docs for the community.
 
-**DoD** : revue complète documentée, publication, zéro dette de sécurité connue.
+**DoD**: documented full review, release, zero known security debt.
 
-## Critères transverses
+## Cross-cutting criteria
 
-- Revue humaine obligatoire sur chaque diff (pas de merge auto).
-- Chaque bug → test de régression.
-- Chaque décision de sécurité → mise à jour de THREAT_MODEL.md dans le même diff.
-- Commandes utiles documentées dans README.md au fil de l'eau.
+- Mandatory human review on every diff (no auto-merge).
+- Every bug → regression test.
+- Every security decision → THREAT_MODEL.md update in the same diff.
+- Useful commands documented in README.md as we go.

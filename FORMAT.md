@@ -1,68 +1,68 @@
-<p align="center"><strong>Français</strong> | <a href="FORMAT.en.md">English</a></p>
+<p align="center"><a href="FORMAT.fr.md">Français</a> | <strong>English</strong></p>
 
-# Format de fichier (v1)
+# File format (v1)
 
-Un coffre est un fichier binaire unique : un en-tête en clair (authentifié), suivi d'un corps chiffré.
-Tous les entiers sont en **big-endian**.
+A vault is a single binary file: a cleartext header (authenticated), followed by an encrypted
+body. All integers are **big-endian**.
 
-## En-tête (79 octets, en clair, utilisé comme AAD)
+## Header (79 bytes, cleartext, used as AAD)
 
-| Offset | Taille | Champ | Valeur |
+| Offset | Size | Field | Value |
 | --- | --- | --- | --- |
 | 0 | 8 | `magic` | `COFFRE\0\0` |
 | 8 | 2 | `version` | `1` |
 | 10 | 1 | `kdf_id` | `1` (Argon2id) |
-| 11 | 4 | `m_cost` | mémoire en KiB |
+| 11 | 4 | `m_cost` | memory in KiB |
 | 15 | 4 | `t_cost` | passes |
-| 19 | 4 | `p_cost` | parallélisme |
-| 23 | 32 | `salt` | sel Argon2 |
-| 55 | 24 | `nonce` | nonce XChaCha20 |
-| 79 | ... | `body` | ciphertext + tag (16 octets) |
+| 19 | 4 | `p_cost` | parallelism |
+| 23 | 32 | `salt` | Argon2 salt |
+| 55 | 24 | `nonce` | XChaCha20 nonce |
+| 79 | ... | `body` | ciphertext + tag (16 bytes) |
 
-L'en-tête est passé intégralement comme **AAD** à l'AEAD. Toute modification d'un octet
-d'en-tête (params, sel, nonce, version) invalide le tag.
+The entire header is passed as **AAD** to the AEAD. Any change to a header byte (params,
+salt, nonce, version) invalidates the tag.
 
-## Corps
+## Body
 
-`body = XChaCha20-Poly1305(clé, nonce, plaintext, aad = en-tête)`
+`body = XChaCha20-Poly1305(key, nonce, plaintext, aad = header)`
 
-Le tag Poly1305 (16 octets) est concaténé à la fin du ciphertext.
+The Poly1305 tag (16 bytes) is appended to the ciphertext.
 
-## Payload (avant chiffrement)
+## Payload (before encryption)
 
-Sérialisation binaire déterministe d'une table `nom -> valeur` :
+Deterministic binary serialization of a `name -> value` table:
 
 ```
 n            : u32
-répété n fois :
+repeated n times:
   name_len   : u32
-  name       : name_len octets (UTF-8)
+  name       : name_len bytes (UTF-8)
   value_len  : u32
-  value      : value_len octets (binaire)
+  value      : value_len bytes (binary)
 ```
 
-Les entrées sont sérialisées dans l'ordre trié des noms (`BTreeMap`), pour un payload
-déterministe à contenu égal.
+Entries are serialized in sorted name order (`BTreeMap`), so equal content yields an
+identical payload.
 
-## Bornes des paramètres Argon2
+## Argon2 parameter bounds
 
-L'en-tête est lu **avant** l'authentification : un fichier piégé pourrait demander une
-dérivation démesurée. Un lecteur conforme refuse le fichier, sans lancer Argon2, si :
+The header is read **before** authentication: a crafted file could request an unbounded
+derivation. A conforming reader rejects the file, without running Argon2, if:
 
-| Paramètre | Borne acceptée |
+| Parameter | Accepted bound |
 | --- | --- |
-| `m_cost` | ≤ 524 288 KiB (512 MiB), et ≥ 8 × `p_cost` (minimum Argon2) |
-| `t_cost` | 1 à 10 |
-| `p_cost` | 1 à 16 |
+| `m_cost` | ≤ 524,288 KiB (512 MiB), and ≥ 8 × `p_cost` (Argon2 minimum) |
+| `t_cost` | 1 to 10 |
+| `p_cost` | 1 to 16 |
 
-Les mêmes bornes s'appliquent à la création. Valeurs par défaut : `m_cost = 65536`
-(64 MiB), `t_cost = 3`, `p_cost = 1`.
+The same bounds apply at creation. Defaults: `m_cost = 65536` (64 MiB), `t_cost = 3`,
+`p_cost = 1`.
 
-## Règles de sécurité
+## Security rules
 
-- `salt` : 32 octets tirés du CSPRNG, **unique par coffre**, stocké en clair.
-- `nonce` : 24 octets tirés du CSPRNG, **nouveau à chaque écriture**. Ne jamais réutiliser
-  sous la même clé.
-- Un mot de passe erroné et un fichier corrompu produisent la même erreur (pas d'oracle).
-- Le payload n'est désérialisé qu'**après** validation du tag AEAD ; le parseur reste
-  néanmoins sans panique face à une entrée arbitraire.
+- `salt`: 32 bytes from the CSPRNG, **unique per vault**, stored in cleartext.
+- `nonce`: 24 bytes from the CSPRNG, **fresh on every write**. Never reuse under the same
+  key.
+- A wrong passphrase and a corrupted file produce the same error (no oracle).
+- The payload is deserialized only **after** AEAD tag validation; the parser is still
+  panic-free on arbitrary input.
