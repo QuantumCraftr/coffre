@@ -1,7 +1,7 @@
 use coffre_core::format::{Entries, Header, KDF_ARGON2ID, VERSION, decode_payload, encode_payload};
 
-// Générateur déterministe (xorshift64*) : des milliers d'entrées reproductibles,
-// sans dépendance de test. Ce n'est pas de la crypto, seulement de la génération.
+// Deterministic generator (xorshift64*): thousands of reproducible inputs,
+// with no test dependency. This is not crypto, only input generation.
 struct Rng(u64);
 
 impl Rng {

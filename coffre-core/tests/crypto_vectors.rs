@@ -52,7 +52,7 @@ fn detects_single_bit_corruption() {
     let nonce = [9u8; 24];
     let aad = b"hdr";
     let mut ct = seal(&key, nonce, b"secret", aad).unwrap();
-    // Un seul bit modifié doit invalider le tag Poly1305.
+    // A single modified bit must invalidate the Poly1305 tag.
     ct[0] ^= 1;
     assert!(open(&key, nonce, &ct, aad).is_err());
 }

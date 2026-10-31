@@ -1,6 +1,6 @@
-//! Coeur du coffre : format de fichier, chiffrement et cycle de vie.
+//! Coffre core: file format, encryption and lifecycle.
 //!
-//! Bibliothèque du binaire `coffre`. Aucune I/O réseau, aucun service externe.
+//! Library for the `coffre` binary. No network I/O, no external service.
 
 #![warn(missing_docs)]
 
@@ -8,5 +8,5 @@ pub mod crypto;
 pub mod format;
 pub mod vault;
 
-/// Version du crate, issue de `Cargo.toml`.
+/// Crate version, from `Cargo.toml`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

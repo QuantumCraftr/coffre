@@ -1,3 +1,5 @@
+<p align="center"><strong>Français</strong> | <a href="THREAT_MODEL.en.md">English</a></p>
+
 # Threat model
 
 Ce document fige le modèle de menace et les choix cryptographiques de la version 1.

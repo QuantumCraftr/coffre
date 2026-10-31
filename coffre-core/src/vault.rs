@@ -1,4 +1,4 @@
-//! Cycle de vie du coffre : création, ouverture, sauvegarde atomique et zeroization.
+//! Vault lifecycle: creation, opening, atomic saving and zeroization.
 
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
@@ -13,19 +13,19 @@ const MAX_M_COST: u32 = 524_288;
 const MAX_T_COST: u32 = 10;
 const MAX_P_COST: u32 = 16;
 
-/// Erreur de la couche coffre.
+/// Vault layer error.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum VaultError {
-    /// Erreur d'entrée/sortie.
+    /// Input/output error.
     Io(std::io::Error),
-    /// Erreur de format de fichier.
+    /// File format error.
     Format(FormatError),
-    /// Erreur cryptographique.
+    /// Cryptographic error.
     Crypto(CryptoError),
-    /// Le fichier existe déjà (création refusée pour ne pas écraser).
+    /// The file already exists (creation refused to avoid overwriting).
     AlreadyExists,
-    /// Paramètres Argon2 hors bornes (protection anti-DoS).
+    /// Argon2 parameters out of bounds (anti-DoS protection).
     UnsupportedParams,
 }
 
@@ -74,13 +74,13 @@ fn rng_fill(buf: &mut [u8]) -> Result<(), VaultError> {
     getrandom::fill(buf).map_err(|e| VaultError::Io(std::io::Error::other(e.to_string())))
 }
 
-/// Un coffre ouvert en mémoire.
+/// An open vault, held in memory.
 ///
-/// Les secrets sont déchiffrés en mémoire pendant la session. Les mutations
-/// (`add`, `remove`) ne sont persistées qu'au prochain appel à [`Vault::save`].
+/// Secrets are decrypted in memory for the session. Mutations (`add`, `remove`)
+/// are only persisted on the next [`Vault::save`] call.
 ///
-/// Le type n'implémente volontairement pas `Debug`, pour ne pas risquer d'exposer
-/// la clé ou les secrets dans un log.
+/// The type deliberately does not implement `Debug`, to avoid exposing the key or
+/// secrets in a log.
 pub struct Vault {
     path: PathBuf,
     header: Header,
@@ -89,11 +89,11 @@ pub struct Vault {
 }
 
 impl Vault {
-    /// Crée un nouveau coffre à `path`.
+    /// Creates a new vault at `path`.
     ///
-    /// Échoue si le fichier existe déjà. Un sel aléatoire est généré, la clé est
-    /// dérivée, puis un coffre vide est écrit avec `create_new`. La création ne
-    /// peut pas écraser un fichier existant, même en cas de course entre processus.
+    /// Fails if the file already exists. A random salt is generated, the key is
+    /// derived, then an empty vault is written with `create_new`. Creation cannot
+    /// overwrite an existing file, even under a race between processes.
     pub fn create(path: &Path, passphrase: &[u8], params: KdfParams) -> Result<Self, VaultError> {
         if path.exists() {
             return Err(VaultError::AlreadyExists);
@@ -122,11 +122,11 @@ impl Vault {
         Ok(vault)
     }
 
-    /// Ouvre et déchiffre un coffre existant.
+    /// Opens and decrypts an existing vault.
     ///
-    /// Les paramètres Argon2 lus dans l'en-tête sont bornés avant dérivation
-    /// (protection contre un fichier piégé). Un mauvais mot de passe et un fichier
-    /// corrompu produisent la même erreur.
+    /// Argon2 parameters read from the header are bounded before derivation
+    /// (protection against a crafted file). A wrong passphrase and a corrupted file
+    /// produce the same error.
     pub fn open(path: &Path, passphrase: &[u8]) -> Result<Self, VaultError> {
         let bytes = fs::read(path)?;
         if bytes.len() < HEADER_LEN {
@@ -151,33 +151,33 @@ impl Vault {
         })
     }
 
-    /// Réécrit le coffre sur disque de façon atomique.
+    /// Atomically rewrites the vault on disk.
     ///
-    /// Un nouveau nonce est généré à chaque appel. L'écriture passe par un fichier
-    /// temporaire (`fsync`) puis un `rename`, suivi d'un `fsync` du dossier.
+    /// A new nonce is generated on every call. The write goes through a temporary
+    /// file (`fsync`) then a `rename`, followed by a directory `fsync`.
     pub fn save(&mut self) -> Result<(), VaultError> {
         let bytes = self.serialize()?;
         write_atomic(&self.path, &bytes)
     }
 
-    /// Ajoute ou remplace un secret en mémoire. Non persisté avant `save`.
+    /// Adds or replaces a secret in memory. Not persisted before `save`.
     pub fn add(&mut self, name: &str, value: &[u8]) {
         if let Some(mut old) = self.entries.insert(name.to_owned(), value.to_vec()) {
             old.zeroize();
         }
     }
 
-    /// Lit un secret en mémoire.
+    /// Reads a secret from memory.
     pub fn get(&self, name: &str) -> Option<&[u8]> {
         self.entries.get(name).map(Vec::as_slice)
     }
 
-    /// Liste les noms de secrets, triés.
+    /// Lists secret names, sorted.
     pub fn list(&self) -> impl Iterator<Item = &str> + '_ {
         self.entries.keys().map(String::as_str)
     }
 
-    /// Supprime un secret en mémoire. Renvoie `true` s'il existait.
+    /// Removes a secret from memory. Returns `true` if it existed.
     pub fn remove(&mut self, name: &str) -> bool {
         match self.entries.remove(name) {
             Some(mut value) => {
@@ -188,7 +188,7 @@ impl Vault {
         }
     }
 
-    /// Chemin du fichier de coffre.
+    /// Path of the vault file.
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -213,7 +213,7 @@ impl Vault {
             && header.t_cost <= MAX_T_COST
             && header.p_cost >= 1
             && header.p_cost <= MAX_P_COST
-            // Minimum imposé par Argon2 ; p_cost est déjà borné, pas de débordement.
+            // Argon2 minimum; p_cost is already bounded, so no overflow.
             && header.m_cost >= 8 * header.p_cost;
         if sane {
             Ok(())
@@ -265,11 +265,11 @@ fn sync_dir(dir: &Path) {
     let _ = dir;
 }
 
-/// Écrit un nouveau fichier sans jamais écraser l'existant (`create_new`).
+/// Writes a new file without ever overwriting an existing one (`create_new`).
 ///
-/// Pas de fichier temporaire ni de lien physique : fonctionne aussi sur les
-/// systèmes de fichiers qui ne supportent pas les hard links (FAT, exFAT, partages
-/// réseau). En cas d'échec d'écriture, le fichier partiel est supprimé.
+/// No temporary file or hard link: this also works on filesystems that do not
+/// support hard links (FAT, exFAT, network shares). On write failure, the partial
+/// file is removed.
 fn write_exclusive(path: &Path, bytes: &[u8]) -> Result<(), VaultError> {
     let file = match open_new(path) {
         Ok(file) => file,
@@ -286,8 +286,8 @@ fn write_exclusive(path: &Path, bytes: &[u8]) -> Result<(), VaultError> {
     Ok(())
 }
 
-/// Remplace `path` de façon atomique : fichier temporaire (`fsync`), `rename`,
-/// puis `fsync` du dossier.
+/// Atomically replaces `path`: temporary file (`fsync`), `rename`, then a
+/// directory `fsync`.
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), VaultError> {
     let dir = parent_dir(path);
     let file_name = path.file_name().and_then(|n| n.to_str()).ok_or_else(|| {

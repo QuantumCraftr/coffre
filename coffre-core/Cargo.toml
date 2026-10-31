@@ -3,7 +3,7 @@ name = "coffre-core"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-description = "Coeur du coffre : format, chiffrement, zeroization"
+description = "Coffre core: file format, encryption, zeroization"
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -12,9 +12,9 @@ keywords = ["secrets", "vault", "security", "encryption", "aead"]
 categories = ["cryptography"]
 
 [dependencies]
-# Primitives cryptographiques eprouvees (RustCrypto), features minimales.
-# argon2 : derivation de cle (Argon2id). Pas de getrandom/password-hash : on fournit le sel.
-# chacha20poly1305 : AEAD XChaCha20-Poly1305. Pas de getrandom : on fournit le nonce.
+# Well-tested cryptographic primitives (RustCrypto), minimal features.
+# argon2: key derivation (Argon2id). No getrandom/password-hash: we supply the salt.
+# chacha20poly1305: XChaCha20-Poly1305 AEAD. No getrandom: we supply the nonce.
 argon2 = { version = "0.6", default-features = false, features = ["alloc", "zeroize"] }
 chacha20poly1305 = { version = "0.11", default-features = false, features = ["alloc", "zeroize"] }
 getrandom = { version = "0.4", features = ["std", "sys_rng"] }

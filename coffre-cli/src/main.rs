@@ -294,8 +294,8 @@ fn read_value() -> Result<Zeroizing<Vec<u8>>, CliError> {
     }
 }
 
-/// Lit tout `reader` sans laisser de copie du secret en mémoire libérée : à chaque
-/// agrandissement, l'ancien buffer est effacé avant d'être rendu à l'allocateur.
+/// Reads all of `reader` without leaving a copy of the secret in freed memory: on
+/// every growth, the old buffer is zeroized before being returned to the allocator.
 fn read_to_end_zeroizing(reader: &mut impl Read) -> io::Result<Zeroizing<Vec<u8>>> {
     let mut buffer = Zeroizing::new(vec![0u8; 4096]);
     let mut len = 0;

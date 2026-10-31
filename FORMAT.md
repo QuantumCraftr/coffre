@@ -1,3 +1,5 @@
+<p align="center"><strong>Français</strong> | <a href="FORMAT.en.md">English</a></p>
+
 # Format de fichier (v1)
 
 Un coffre est un fichier binaire unique : un en-tête en clair (authentifié), suivi d'un corps chiffré.

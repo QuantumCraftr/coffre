@@ -56,7 +56,8 @@ Bitwarden and KeePass are battle-tested and very good. `coffre` does not try to 
 | Dependencies | Minimal and justified (5 direct), pinned RustCrypto primitives |
 | Verification | Cross-validation (libsodium, reference C Argon2) |
 
-The full threat model is documented and versioned: [THREAT_MODEL.md](THREAT_MODEL.md).
+The full threat model is documented and versioned: [THREAT_MODEL.en.md](THREAT_MODEL.en.md).
+The file format specification: [FORMAT.en.md](FORMAT.en.md).
 Every dependency is justified: [DEPENDENCIES.md](DEPENDENCIES.md).
 
 ## Getting started

@@ -1,5 +1,5 @@
-//! Format de fichier v1 : en-tête binaire fixe (authentifié comme AAD) et
-//! sérialisation déterministe du payload.
+//! File format v1: fixed binary header (authenticated as AAD) and deterministic
+//! payload serialization.
 
 use std::collections::BTreeMap;
 
@@ -7,37 +7,37 @@ use zeroize::Zeroize;
 
 use crate::crypto::{NONCE_LEN, SALT_LEN};
 
-/// Octets magiques en tête de fichier.
+/// Magic bytes at the start of the file.
 pub const MAGIC: [u8; 8] = *b"COFFRE\0\0";
-/// Version du format supportée.
+/// Supported format version.
 pub const VERSION: u16 = 1;
-/// Identifiant de l'algorithme de dérivation de clé (Argon2id).
+/// Key derivation algorithm identifier (Argon2id).
 pub const KDF_ARGON2ID: u8 = 1;
-/// Taille de l'en-tête, en octets.
+/// Header size, in bytes.
 pub const HEADER_LEN: usize = 79;
 
-/// Table des secrets : nom vers valeur binaire.
+/// Secret table: name to binary value.
 pub type Entries = BTreeMap<String, Vec<u8>>;
 
-/// Erreur de lecture ou d'écriture du format.
+/// Format read/write error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum FormatError {
-    /// Données trop courtes pour un en-tête ou un payload valide.
+    /// Data too short for a valid header or payload.
     TooShort,
-    /// Octets magiques invalides.
+    /// Invalid magic bytes.
     BadMagic,
-    /// Version de format non supportée.
+    /// Unsupported format version.
     UnsupportedVersion(u16),
-    /// Algorithme de dérivation de clé non supporté.
+    /// Unsupported key derivation algorithm.
     UnsupportedKdf(u8),
-    /// Nom d'entrée non UTF-8.
+    /// Non-UTF-8 entry name.
     InvalidUtf8,
-    /// Nom d'entrée en double.
+    /// Duplicate entry name.
     DuplicateName,
-    /// Longueur dépassant `u32`.
+    /// Length exceeds `u32`.
     LengthOverflow,
-    /// Octets résiduels après le payload.
+    /// Trailing bytes after the payload.
     TrailingData,
 }
 
@@ -62,27 +62,27 @@ impl std::fmt::Display for FormatError {
 
 impl std::error::Error for FormatError {}
 
-/// En-tête de fichier, en clair et authentifié comme AAD.
+/// File header, in clear text and authenticated as AAD.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Header {
-    /// Version du format.
+    /// Format version.
     pub version: u16,
-    /// Identifiant de l'algorithme de dérivation de clé.
+    /// Key derivation algorithm identifier.
     pub kdf_id: u8,
-    /// Coût mémoire Argon2, en KiB.
+    /// Argon2 memory cost, in KiB.
     pub m_cost: u32,
-    /// Nombre de passes Argon2.
+    /// Argon2 number of passes.
     pub t_cost: u32,
-    /// Parallélisme Argon2.
+    /// Argon2 parallelism.
     pub p_cost: u32,
-    /// Sel Argon2.
+    /// Argon2 salt.
     pub salt: [u8; SALT_LEN],
-    /// Nonce XChaCha20.
+    /// XChaCha20 nonce.
     pub nonce: [u8; NONCE_LEN],
 }
 
 impl Header {
-    /// Sérialise l'en-tête sur `HEADER_LEN` octets (big-endian).
+    /// Serializes the header into `HEADER_LEN` bytes (big-endian).
     pub fn encode(&self) -> [u8; HEADER_LEN] {
         let mut out = [0u8; HEADER_LEN];
         out[0..8].copy_from_slice(&MAGIC);
@@ -96,10 +96,10 @@ impl Header {
         out
     }
 
-    /// Lit et valide un en-tête.
+    /// Reads and validates a header.
     ///
-    /// Ne panique jamais, même sur une entrée arbitraire : l'en-tête est lu avant
-    /// l'authentification, il est donc exposé à des données non fiables.
+    /// Never panics, even on arbitrary input: the header is read before
+    /// authentication, so it is exposed to untrusted data.
     pub fn decode(bytes: &[u8]) -> Result<Self, FormatError> {
         if bytes.len() < HEADER_LEN {
             return Err(FormatError::TooShort);
@@ -134,11 +134,11 @@ impl Header {
     }
 }
 
-/// Sérialise les entrées en un payload binaire déterministe.
+/// Serializes entries into a deterministic binary payload.
 ///
-/// L'ordre est celui de `BTreeMap` (trié par nom), donc un même contenu produit
-/// toujours les mêmes octets. La taille exacte est calculée d'avance pour éviter
-/// les réallocations, qui laisseraient des copies du clair en mémoire.
+/// Order follows `BTreeMap` (sorted by name), so the same content always produces
+/// the same bytes. The exact size is computed up front to avoid reallocations,
+/// which would leave copies of the plaintext in memory.
 pub fn encode_payload(entries: &Entries) -> Result<Vec<u8>, FormatError> {
     let count = u32::try_from(entries.len()).map_err(|_| FormatError::LengthOverflow)?;
     let mut size = 4usize;
@@ -163,11 +163,11 @@ pub fn encode_payload(entries: &Entries) -> Result<Vec<u8>, FormatError> {
     Ok(out)
 }
 
-/// Désérialise un payload.
+/// Deserializes a payload.
 ///
-/// Ne panique jamais : toute entrée invalide (tronquée, longueur débordante,
-/// UTF-8 invalide, doublon, octets en trop) renvoie une erreur. En cas d'erreur,
-/// les entrées déjà décodées sont effacées.
+/// Never panics: any invalid input (truncated, overflowing length, invalid UTF-8,
+/// duplicate, trailing bytes) returns an error. On error, already-decoded entries
+/// are zeroized.
 pub fn decode_payload(bytes: &[u8]) -> Result<Entries, FormatError> {
     let mut entries = Entries::new();
     match decode_payload_into(bytes, &mut entries) {
@@ -191,8 +191,8 @@ fn decode_payload_into(bytes: &[u8], entries: &mut Entries) -> Result<(), Format
         if entries.contains_key(name) {
             return Err(FormatError::DuplicateName);
         }
-        // Allocation seulement une fois l'entrée validée : aucune copie du clair
-        // n'est abandonnée sans zeroization sur un chemin d'erreur.
+        // Allocate only after the entry is validated: no plaintext copy is
+        // abandoned without zeroization on an error path.
         entries.insert(name.to_owned(), value.to_vec());
     }
     if pos != bytes.len() {

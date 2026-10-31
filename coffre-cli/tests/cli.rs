@@ -241,7 +241,7 @@ fn add_rejects_name_with_control_characters() {
 
 #[test]
 fn add_reads_large_value_from_stdin() {
-    // Plus grand que le tampon initial : exerce la croissance du buffer de lecture.
+    // Larger than the initial buffer: exercises growth of the read buffer.
     let tmp = TempDir::new();
     let path = tmp.0.join("vault.coffre");
     let path = path.to_str().unwrap();
