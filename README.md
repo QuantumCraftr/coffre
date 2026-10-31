@@ -1,3 +1,5 @@
+<p align="center"><strong>Français</strong> | <a href="README.en.md">English</a></p>
+
 <h1 align="center">coffre</h1>
 
 <p align="center">
