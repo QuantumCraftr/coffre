@@ -1,0 +1,28 @@
+[package]
+name = "coffre-core-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.coffre-core]
+path = "../coffre-core"
+
+[[bin]]
+name = "header_decode"
+path = "fuzz_targets/header_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "payload_decode"
+path = "fuzz_targets/payload_decode.rs"
+test = false
+doc = false
+bench = false
