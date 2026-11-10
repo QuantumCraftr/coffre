@@ -36,13 +36,11 @@ fn run(command: &mut Command, stdin: &str) -> std::process::Output {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    child
-        .stdin
-        .as_mut()
-        .unwrap()
-        .write_all(stdin.as_bytes())
-        .unwrap();
-    drop(child.stdin.take());
+    if let Some(mut child_stdin) = child.stdin.take() {
+        // The child may exit before reading stdin (e.g. argument validation):
+        // a broken pipe is expected and must not fail the test.
+        let _ = child_stdin.write_all(stdin.as_bytes());
+    }
     child.wait_with_output().unwrap()
 }
 
