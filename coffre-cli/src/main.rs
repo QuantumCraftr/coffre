@@ -78,6 +78,7 @@ fn run() -> Result<ExitCode, CliError> {
         "get" => cmd_get(rest)?,
         "list" => cmd_list(rest)?,
         "rm" => cmd_rm(rest)?,
+        "passwd" => cmd_passwd(rest)?,
         "run" => return cmd_run(rest),
         "help" | "-h" | "--help" => {
             println!("{}", usage());
@@ -163,6 +164,21 @@ fn cmd_rm(rest: &[String]) -> Result<(), CliError> {
     }
     vault.save()?;
     eprintln!("coffre: removed '{name}'");
+    Ok(())
+}
+
+fn cmd_passwd(rest: &[String]) -> Result<(), CliError> {
+    let path = one_arg(rest, "passwd <path>")?;
+    let old_passphrase = read_passphrase(false)?;
+    let mut vault = Vault::open(Path::new(path), old_passphrase.as_bytes())?;
+    let new_passphrase = read_new_passphrase()?;
+    if new_passphrase.is_empty() {
+        return Err(CliError::Usage(
+            "new passphrase must not be empty".to_string(),
+        ));
+    }
+    vault.change_passphrase(new_passphrase.as_bytes())?;
+    eprintln!("coffre: passphrase changed");
     Ok(())
 }
 
@@ -278,6 +294,18 @@ fn read_passphrase(confirm: bool) -> Result<Zeroizing<String>, CliError> {
     Ok(passphrase)
 }
 
+fn read_new_passphrase() -> Result<Zeroizing<String>, CliError> {
+    if let Ok(from_env) = std::env::var("COFFRE_NEW_PASSPHRASE") {
+        return Ok(Zeroizing::new(from_env));
+    }
+    let passphrase = Zeroizing::new(rpassword::prompt_password("New passphrase: ")?);
+    let again = Zeroizing::new(rpassword::prompt_password("Confirm passphrase: ")?);
+    if passphrase.as_str() != again.as_str() {
+        return Err(CliError::PassphraseMismatch);
+    }
+    Ok(passphrase)
+}
+
 fn read_value() -> Result<Zeroizing<Vec<u8>>, CliError> {
     if io::stdin().is_terminal() {
         let value = rpassword::prompt_password("Secret value: ")?;
@@ -343,6 +371,7 @@ commands:
   get  <path> <name>     print a secret value
   list <path>            list secret names
   rm   <path> <name>     remove a secret
+  passwd <path>          change the vault passphrase
   run  <path> [name...] -- <command> [args...]
                          run a command with secrets injected as env vars
 

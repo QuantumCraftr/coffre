@@ -43,6 +43,7 @@ Bitwarden et KeePass sont éprouvés et très bons. `coffre` n'essaie pas de fai
 
 - `init` : créer un coffre chiffré.
 - `add` / `get` / `list` / `rm` : gérer des secrets.
+- `passwd` : changer la phrase secrète maître.
 - `run` : lancer une commande avec les secrets injectés en variables d'environnement, sans les afficher (mode « courtier » pour agents IA).
 
 ## Choix techniques
@@ -76,6 +77,7 @@ coffre add  ~/.coffre/vault github_token     # valeur lue sur stdin ou demandée
 coffre get  ~/.coffre/vault github_token     # affiche la valeur
 coffre list ~/.coffre/vault                  # liste les noms
 coffre rm   ~/.coffre/vault github_token     # supprime
+coffre passwd ~/.coffre/vault                # change la phrase secrète maître
 coffre run  ~/.coffre/vault GITHUB_TOKEN -- ./deploy.sh   # injecte GITHUB_TOKEN en env var
 ```
 

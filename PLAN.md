@@ -46,7 +46,7 @@ Implement format v1 (see THREAT_MODEL.md §5 and §8).
 
 The `coffre` binary.
 
-- Subcommands: `init`, `add`, `get`, `list`, `rm`.
+- Subcommands: `init`, `add`, `get`, `list`, `rm`, `passwd`.
 - Golden rule: secrets never go to stdout/logs unless explicitly requested.
 - Error handling without information leaks.
 

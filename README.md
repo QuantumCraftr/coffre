@@ -43,6 +43,7 @@ Bitwarden and KeePass are battle-tested and very good. `coffre` does not try to 
 
 - `init`: create an encrypted vault.
 - `add` / `get` / `list` / `rm`: manage secrets.
+- `passwd`: change the master passphrase.
 - `run`: run a command with secrets injected as environment variables, without printing them (broker mode for AI agents).
 
 ## Technical choices
@@ -77,6 +78,7 @@ coffre add  ~/.coffre/vault github_token     # value read from stdin or prompted
 coffre get  ~/.coffre/vault github_token     # print the value
 coffre list ~/.coffre/vault                  # list names
 coffre rm   ~/.coffre/vault github_token     # remove
+coffre passwd ~/.coffre/vault                # change the master passphrase
 coffre run  ~/.coffre/vault GITHUB_TOKEN -- ./deploy.sh   # inject GITHUB_TOKEN as env var
 ```
 

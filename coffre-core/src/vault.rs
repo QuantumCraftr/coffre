@@ -160,6 +160,32 @@ impl Vault {
         write_atomic(&self.path, &bytes)
     }
 
+    /// Changes the vault passphrase.
+    ///
+    /// Generates a new salt, derives a new key with the same Argon2 parameters, and
+    /// rewrites the vault atomically. On failure, the in-memory key and salt are
+    /// restored so the vault stays openable with the previous passphrase.
+    pub fn change_passphrase(&mut self, new_passphrase: &[u8]) -> Result<(), VaultError> {
+        let previous_salt = self.header.salt;
+        let previous_key = self.key.clone();
+        let mut salt = [0u8; SALT_LEN];
+        rng_fill(&mut salt)?;
+        let params = KdfParams {
+            m_cost: self.header.m_cost,
+            t_cost: self.header.t_cost,
+            p_cost: self.header.p_cost,
+        };
+        let key = Zeroizing::new(crypto::derive_key(new_passphrase, &salt, &params)?);
+        self.header.salt = salt;
+        self.key = key;
+        if let Err(e) = self.save() {
+            self.header.salt = previous_salt;
+            self.key = previous_key;
+            return Err(e);
+        }
+        Ok(())
+    }
+
     /// Adds or replaces a secret in memory. Not persisted before `save`.
     pub fn add(&mut self, name: &str, value: &[u8]) {
         if let Some(mut old) = self.entries.insert(name.to_owned(), value.to_vec()) {

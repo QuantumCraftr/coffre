@@ -268,3 +268,45 @@ fn run_reports_missing_command() {
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("cannot run 'coffre-no-such-command'"));
 }
+
+#[test]
+fn passwd_changes_passphrase() {
+    let tmp = TempDir::new();
+    let path = tmp.0.join("vault.coffre");
+    let path = path.to_str().unwrap();
+
+    assert!(run(coffre().args(["init", path]), "").status.success());
+    assert!(
+        run(coffre().args(["add", path, "token"]), "s3cret\n")
+            .status
+            .success()
+    );
+
+    let out = coffre()
+        .args(["passwd", path])
+        .env("COFFRE_PASSPHRASE", "test-pass")
+        .env("COFFRE_NEW_PASSPHRASE", "new-pass")
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "passwd: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let out = coffre()
+        .args(["list", path])
+        .env("COFFRE_PASSPHRASE", "new-pass")
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    assert_eq!(stdout(&out), "token\n");
+
+    let out = coffre()
+        .args(["list", path])
+        .env("COFFRE_PASSPHRASE", "test-pass")
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+}

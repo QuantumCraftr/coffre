@@ -221,3 +221,25 @@ fn create_rejects_m_cost_below_argon2_minimum() {
     assert!(matches!(err, VaultError::UnsupportedParams));
     assert!(!path.exists(), "no file must be written on rejection");
 }
+
+#[test]
+fn change_passphrase_rotates_salt_and_key() {
+    let tmp = TempDir::new();
+    let path = tmp.vault_path();
+    let mut vault = Vault::create(&path, b"old-pass", test_params()).unwrap();
+    vault.add("token", b"secret");
+    vault.save().unwrap();
+    let old_salt = read_header(&path).salt;
+
+    vault.change_passphrase(b"new-pass").unwrap();
+    drop(vault);
+
+    let new_salt = read_header(&path).salt;
+    assert_ne!(old_salt, new_salt, "salt must change with the passphrase");
+    assert!(matches!(
+        expect_err(Vault::open(&path, b"old-pass")),
+        VaultError::Crypto(_)
+    ));
+    let vault = Vault::open(&path, b"new-pass").unwrap();
+    assert_eq!(vault.get("token"), Some(&b"secret"[..]));
+}
